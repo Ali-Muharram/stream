@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YouTube Sync Cinema - مشاهدة جماعية تزامنية شمولية</title>
+  
+  <!-- خط Google Fonts Tajawal -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+  
+  <!-- مكتبة PeerJS -->
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
+  <style>
+    :root {
+      --bg-color: #060911;
+      --card-bg: rgba(15, 23, 42, 0.85);
+      --card-border: rgba(255, 255, 255, 0.1);
+      --primary: #6366f1;
+      --primary-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+      --accent: #ec4899;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --radius: 20px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Tajawal', system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      background-image: 
+        radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.2) 0%, transparent 60%),
+        radial-gradient(circle at 100% 100%, rgba(168, 85, 247, 0.12) 0%, transparent 50%);
+      background-attachment: fixed;
+      color: var(--text-main);
+      min-height: 100vh;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* Main App Layout */
+    .app-container {
+      width: 100%;
+      max-width: 1400px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Top Navbar */
+    .navbar {
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand h1 {
+      font-size: 1.3rem;
+      font-weight: 900;
+      background: linear-gradient(135deg, #a5b4fc, #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .id-tag {
+      background: rgba(10, 15, 30, 0.7);
+      border: 1px dashed rgba(99, 102, 241, 0.4);
+      padding: 6px 14px;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .id-tag code {
+      font-family: monospace;
+      color: #38bdf8;
+      font-weight: bold;
+    }
+
+    /* Cinema Video Player Container (Occupies Most of Screen) */
+    .cinema-wrapper {
+      width: 100%;
+      position: relative;
+    }
+
+    .player-container {
+      position: relative;
+      width: 100%;
+      padding-bottom: 52%; /* Large Cinema ratio */
+      height: 0;
+      overflow: hidden;
+      border-radius: var(--radius);
+      background: #000;
+      box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.9), 0 0 50px rgba(99, 102, 241, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      transition: all 0.3s ease;
+    }
+
+    @media (max-width: 768px) {
+      .player-container {
+        padding-bottom: 56.25%;
+      }
+    }
+
+    .player-container iframe, 
+    .player-container div#player {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    /* Controls & Connection Panel Grid (Minimal & Clean) */
+    .panels-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    @media (min-width: 992px) {
+      .panels-grid {
+        grid-template-columns: 1.3fr 0.7fr;
+      }
+    }
+
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+    }
+
+    .card-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #e2e8f0;
+    }
+
+    .input-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(10, 15, 30, 0.8);
+      color: #fff;
+      font-size: 0.95rem;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 10px 16px;
+      border-radius: 12px;
+      border: none;
+      font-weight: 700;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: var(--primary-gradient);
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+    }
+
+    .btn-primary:hover {
+      opacity: 0.94;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-main);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      border-radius: 8px;
+    }
+
+    /* Badges & Status */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 0.85rem;
+    }
+
+    .badge-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .badge-disconnected {
+      background: rgba(239, 68, 68, 0.15);
+      color: #fca5a5;
+    }
+    .badge-disconnected .badge-dot { background: var(--danger); }
+
+    .badge-connecting {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fcd34d;
+    }
+    .badge-connecting .badge-dot { background: var(--warning); animation: pulse 1.5s infinite; }
+
+    .badge-connected {
+      background: rgba(34, 197, 94, 0.15);
+      color: #86efac;
+    }
+    .badge-connected .badge-dot { background: var(--success); box-shadow: 0 0 10px var(--success); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    /* Toast Notification */
+    #toast-container {
+      position: fixed;
+      bottom: 24px;
+      left: 24px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .toast {
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+      backdrop-filter: blur(8px);
+      font-size: 0.9rem;
+      animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    @keyframes slideIn {
+      from { transform: translateY(100%); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+  
+  <!-- Top Navigation Bar -->
+  <div class="navbar">
+    <div class="brand">
+      <span style="font-size: 1.5rem;">🍿</span>
+      <h1>YouTube Sync Cinema</h1>
+    </div>
+
+    <div class="nav-actions">
+      <!-- Status Badge -->
+      <span id="status-badge" class="badge badge-disconnected">
+        <span class="badge-dot"></span>
+        <span id="status-text">غير متصل</span>
+      </span>
+
+      <!-- My ID tag -->
+      <div class="id-tag">
+        <span>غرفتك:</span>
+        <code id="my-id">جاري التحميل...</code>
+        <button class="btn btn-secondary btn-sm" onclick="copyMyId()">📋 نسخ ID</button>
+        <button class="btn btn-secondary btn-sm" onclick="copyRoomLink()">🔗 الرابط</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cinema Player (Occupies Most of Screen - Controlled natively via YouTube controls) -->
+  <div class="cinema-wrapper">
+    <div class="player-container">
+      <div id="player"></div>
+    </div>
+  </div>
+
+  <!-- Minimal Control Grid (Streamlined & Clean) -->
+  <div class="panels-grid">
+    <!-- Video Loader Card with Single Sync Button -->
+    <div class="card">
+      <div class="card-title">
+        <span>📺 رابط الفيديو</span>
+        <button class="btn btn-secondary btn-sm" onclick="userForceSync()" title="إعادة مزامنة الوقت فورياً مع باقي الأطراف">🔄 مزامنة الوقت الآن</button>
+      </div>
+      <div class="input-group">
+        <input type="text" id="youtube-url" placeholder="أدخل رابط فيديو YouTube هنا...">
+        <button class="btn btn-primary" onclick="userLoadAndSyncVideo()">تغيير للجميع 🚀</button>
+      </div>
+    </div>
+
+    <!-- Peer Connection Card -->
+    <div class="card">
+      <div class="card-title">
+        <span>🔗 الانضمام لصديق</span>
+        <span id="peer-count" style="color: var(--accent); font-size: 0.85rem;">0 متصلين</span>
+      </div>
+      <div class="input-group">
+        <input type="text" id="peer-id-input" placeholder="أدخل ID صديقك للانضمام...">
+        <button class="btn btn-primary" onclick="connectToPeer()">اتصال ⚡</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast Container -->
+<div id="toast-container"></div>
+
+<!-- YouTube IFrame API Script -->
+<script src="https://www.youtube.com/iframe_api"></script>
+
+<script>
+  // Global Application State
+  let peer = null;
+  let activeConnections = new Map(); // Stores key: peerId, value: DataConnection
+  let ytPlayer = null;
+  let isPlayerReady = false;
+  let isRemoteAction = false; // Flag to prevent infinite broadcast loops
+  let currentVideoId = 'dQw4w9WgXcQ'; // Default video ID
+  let isAdPlaying = false;
+  let lastRecordedRate = 1;
+
+  // --- 1. YouTube IFrame API Initialization ---
+  function onYouTubeIframeAPIReady() {
+    ytPlayer = new YT.Player('player', {
+      height: '100%',
+      width: '100%',
+      videoId: currentVideoId,
+      playerVars: {
+        'autoplay': 0,
+        'controls': 1,
+        'rel': 0,
+        'enablejsapi': 1,
+        'origin': window.location.origin
+      },
+      events: {
+        'onReady': onPlayerReady,
+        'onStateChange': onPlayerStateChange,
+        'onPlaybackRateChange': onPlaybackRateChange,
+        'onError': onPlayerError
+      }
+    });
+  }
+
+  function onPlayerReady(event) {
+    isPlayerReady = true;
+    showToast('جاهز لتشغيل الميديا عبر أزرار يوتيوب المباشرة 🎬');
+  }
+
+  let lastRecordedTime = 0;
+  let lastCheckTimestamp = Date.now();
+
+  // Helper to check if YouTube player is currently showing an Ad
+  function checkIsAd() {
+    if (!ytPlayer || !ytPlayer.getVideoData) return false;
+    const data = ytPlayer.getVideoData();
+    // If videoData flags as ad or title indicates ad transition
+    return (data && (data.isAd || data.ad_device));
+  }
+
+  // Handle YouTube native state changes (Play / Pause / Seek / Buffer / Ad)
+  function onPlayerStateChange(event) {
+    if (isRemoteAction) return; // Triggered by remote peer, skip broadcast
+
+    // Ad detection check
+    const isAdNow = checkIsAd();
+    if (isAdNow) {
+      if (!isAdPlaying) {
+        isAdPlaying = true;
+        showToast('📢 يجرى عرض إعلان لدى أحد الأطراف (تجميد المزامنة المؤقت)');
+      }
+      return; // Do not broadcast time sync during Ads!
+    } else if (isAdPlaying) {
+      isAdPlaying = false;
+      showToast('✅ انتهى الإعلان، جاري استئناف المزامنة التلقائية');
+      userForceSync();
+      return;
+    }
+
+    const currentTime = ytPlayer.getCurrentTime ? ytPlayer.getCurrentTime() : 0;
+    const currentRate = ytPlayer.getPlaybackRate ? ytPlayer.getPlaybackRate() : 1;
+    lastRecordedTime = currentTime;
+    lastCheckTimestamp = Date.now();
+
+    if (event.data === YT.PlayerState.PLAYING) {
+      broadcastSignal({ type: 'PLAY', currentTime: currentTime, rate: currentRate });
+    } else if (event.data === YT.PlayerState.PAUSED) {
+      broadcastSignal({ type: 'PAUSE', currentTime: currentTime });
+    } else if (event.data === YT.PlayerState.BUFFERING) {
+      // Seek or Timeline drag
+      broadcastSignal({ type: 'SEEK', currentTime: currentTime });
+    } else if (event.data === YT.PlayerState.ENDED) {
+      broadcastSignal({ type: 'ENDED' });
+    }
+  }
+
+  // Handle YouTube native playback rate speed changes (e.g. 1.25x, 1.5x, 2x)
+  function onPlaybackRateChange(event) {
+    if (isRemoteAction) return;
+    const newRate = event.data;
+    lastRecordedRate = newRate;
+    broadcastSignal({ type: 'RATE_CHANGE', rate: newRate });
+    showToast(`⚡ تم تغيير سرعة التشغيل إلى: ${newRate}x`);
+  }
+
+  function onPlayerError(event) {
+    console.warn('YouTube Player Error:', event.data);
+    showToast('⚠️ يتعذر تشغيل بعض الفيديوهات بسبب قيود التضمين في يوتيوب');
+  }
+
+  // Periodic Timeline & Speed & Ad Monitor for YouTube Player
+  setInterval(() => {
+    if (!isPlayerReady || !ytPlayer || !ytPlayer.getCurrentTime) return;
+
+    // Check if ad is active
+    if (checkIsAd()) {
+      isAdPlaying = true;
+      return;
+    } else if (isAdPlaying) {
+      isAdPlaying = false;
+      userForceSync();
+    }
+
+    const currentTime = ytPlayer.getCurrentTime();
+    const now = Date.now();
+    const state = ytPlayer.getPlayerState ? ytPlayer.getPlayerState() : -1;
+    const currentRate = ytPlayer.getPlaybackRate ? ytPlayer.getPlaybackRate() : 1;
+
+    // Check rate changes if event missed
+    if (currentRate !== lastRecordedRate && !isRemoteAction) {
+      lastRecordedRate = currentRate;
+      broadcastSignal({ type: 'RATE_CHANGE', rate: currentRate });
+    }
+
+    if (isRemoteAction) {
+      lastRecordedTime = currentTime;
+      lastCheckTimestamp = now;
+      return;
+    }
+
+    // Native timeline drag detection
+    if (state === YT.PlayerState.PLAYING) {
+      const elapsedSeconds = ((now - lastCheckTimestamp) / 1000) * currentRate;
+      const expectedTime = lastRecordedTime + elapsedSeconds;
+
+      if (Math.abs(currentTime - expectedTime) > 1.2) {
+        broadcastSignal({ type: 'SEEK', currentTime: currentTime });
+      }
+    } else if (state === YT.PlayerState.PAUSED || state === YT.PlayerState.BUFFERING) {
+      if (Math.abs(currentTime - lastRecordedTime) > 1.2) {
+        broadcastSignal({ type: 'SEEK', currentTime: currentTime });
+      }
+    }
+
+    lastRecordedTime = currentTime;
+    lastCheckTimestamp = now;
+  }, 400);
+
+  // --- 2. PeerJS Setup & Connection Handling ---
+  function initPeerJS() {
+    updateStatus('connecting', 'جاري الاتصال بالسيرفر...');
+
+    peer = new Peer({ debug: 1 });
+
+    peer.on('open', (id) => {
+      document.getElementById('my-id').innerText = id;
+      updateStatus('disconnected', 'جاهز للاتصال');
+      showToast('تم الاتصال بموزع PeerJS بنجاح ✅');
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const roomParam = urlParams.get('room');
+      if (roomParam && roomParam !== id) {
+        document.getElementById('peer-id-input').value = roomParam;
+        connectToPeer(roomParam);
+      }
+    });
+
+    peer.on('connection', (conn) => {
+      registerConnection(conn);
+    });
+
+    peer.on('disconnected', () => {
+      updateStatus('disconnected', 'انقطع الاتصال');
+      showToast('⚠️ انقطع الاتصال بالسيرفر، جاري المحاولة...');
+      peer.reconnect();
+    });
+
+    peer.on('error', (err) => {
+      console.error('PeerJS Error:', err);
+      showToast('❌ خطأ في الاتصال: ' + (err.type || err.message));
+      updateStatus('disconnected', 'خطأ بالاتصال');
+    });
+  }
+
+  function connectToPeer(targetId) {
+    const remoteId = targetId || document.getElementById('peer-id-input').value.trim();
+    if (!remoteId) return showToast('⚠️ يرجى إدخال ID الطرف الآخر');
+    if (remoteId === peer.id) return showToast('⚠️ لا يمكنك الاتصال بنفسك!');
+    if (activeConnections.has(remoteId)) return showToast('ملاحظة: أنت متصل بالفعل بهذا الطرف');
+
+    updateStatus('connecting', 'جاري الاتصال...');
+    const conn = peer.connect(remoteId, { reliable: true });
+    registerConnection(conn);
+  }
+
+  function registerConnection(conn) {
+    const setupListeners = () => {
+      activeConnections.set(conn.peer, conn);
+      updatePeerCountUI();
+      updateStatus('connected', `متصل (${activeConnections.size})`);
+      showToast(`تم الاتصال بنجاح مع: ${conn.peer} ✅`);
+
+      // Send initial room state to newly connected peer
+      if (isPlayerReady && ytPlayer && ytPlayer.getCurrentTime) {
+        const state = {
+          type: 'SYNC_INITIAL_STATE',
+          videoId: currentVideoId,
+          currentTime: ytPlayer.getCurrentTime(),
+          rate: ytPlayer.getPlaybackRate ? ytPlayer.getPlaybackRate() : 1,
+          isPlaying: ytPlayer.getPlayerState() === YT.PlayerState.PLAYING
+        };
+        conn.send(state);
+      }
+    };
+
+    if (conn.open) {
+      setupListeners();
+    } else {
+      conn.on('open', setupListeners);
+    }
+
+    conn.on('data', (data) => {
+      handleRemoteSignal(data, conn);
+    });
+
+    conn.on('close', () => {
+      activeConnections.delete(conn.peer);
+      updatePeerCountUI();
+      showToast(`انقطع الاتصال مع: ${conn.peer} ❌`);
+      if (activeConnections.size === 0) {
+        updateStatus('disconnected', 'غير متصل');
+      } else {
+        updateStatus('connected', `متصل (${activeConnections.size})`);
+      }
+    });
+
+    conn.on('error', (err) => {
+      console.error('Connection Error:', err);
+      activeConnections.delete(conn.peer);
+      updatePeerCountUI();
+    });
+  }
+
+  function broadcastSignal(data) {
+    activeConnections.forEach((conn) => {
+      if (conn && conn.open) {
+        conn.send(data);
+      }
+    });
+  }
+
+  // --- 3. Signal Reception & Execution ---
+  function handleRemoteSignal(data, senderConn) {
+    if (!isPlayerReady || !ytPlayer) return;
+
+    isRemoteAction = true;
+
+    switch (data.type) {
+      case 'CHANGE_VIDEO':
+        currentVideoId = data.videoId;
+        ytPlayer.loadVideoById(data.videoId, 0);
+        showToast('📺 تم تغيير الفيديو بواسطة الطرف الآخر');
+        break;
+
+      case 'PLAY':
+        if (data.rate && ytPlayer.setPlaybackRate) ytPlayer.setPlaybackRate(data.rate);
+        syncTime(data.currentTime);
+        ytPlayer.playVideo();
+        showToast('▶️ تشغيل الفيديو بواسطة الطرف الآخر');
+        break;
+
+      case 'PAUSE':
+        syncTime(data.currentTime);
+        ytPlayer.pauseVideo();
+        showToast('⏸️ إيقاف مؤقت بواسطة الطرف الآخر');
+        break;
+
+      case 'SEEK':
+        ytPlayer.seekTo(data.currentTime, true);
+        showToast('⏩ تم تقديم/تأخير الفيديو');
+        break;
+
+      case 'RATE_CHANGE':
+        if (ytPlayer.setPlaybackRate) {
+          ytPlayer.setPlaybackRate(data.rate);
+          showToast(`⚡ تم تغيير سرعة التشغيل إلى: ${data.rate}x`);
+        }
+        break;
+
+      case 'ENDED':
+        if (ytPlayer.pauseVideo) ytPlayer.pauseVideo();
+        showToast('🏁 انتهى الفيديو لدى الطرف الآخر');
+        break;
+
+      case 'SYNC_INITIAL_STATE':
+        currentVideoId = data.videoId;
+        ytPlayer.loadVideoById({
+          videoId: data.videoId,
+          startSeconds: data.currentTime || 0
+        });
+        if (data.rate && ytPlayer.setPlaybackRate) ytPlayer.setPlaybackRate(data.rate);
+        if (data.isPlaying) {
+          ytPlayer.playVideo();
+        } else {
+          ytPlayer.pauseVideo();
+        }
+        showToast('🔄 تم استقبال حالة الغرفة ومزامنة الفيديو بالكامل');
+        break;
+
+      case 'FORCE_SYNC':
+        if (data.rate && ytPlayer.setPlaybackRate) ytPlayer.setPlaybackRate(data.rate);
+        ytPlayer.seekTo(data.currentTime, true);
+        if (data.isPlaying) ytPlayer.playVideo();
+        else ytPlayer.pauseVideo();
+        showToast('🔄 تم تطبيق إعادة المزامنة اللحظية');
+        break;
+    }
+
+    setTimeout(() => {
+      isRemoteAction = false;
+    }, 500);
+  }
+
+  function syncTime(targetTime) {
+    if (!ytPlayer.getCurrentTime) return;
+    const currentTime = ytPlayer.getCurrentTime();
+    if (Math.abs(currentTime - targetTime) > 1.5) {
+      ytPlayer.seekTo(targetTime, true);
+    }
+  }
+
+  // --- 4. User Triggered Actions ---
+  function userLoadAndSyncVideo() {
+    const input = document.getElementById('youtube-url').value.trim();
+    if (!input) return showToast('⚠️ يرجى إدخال رابط يوتيوب');
+    const videoId = extractVideoId(input);
+    if (!videoId) return showToast('❌ تعذر استخراج Video ID من الرابط');
+
+    currentVideoId = videoId;
+    isRemoteAction = true;
+    ytPlayer.loadVideoById(videoId, 0);
+    setTimeout(() => { isRemoteAction = false; }, 500);
+
+    broadcastSignal({ type: 'CHANGE_VIDEO', videoId: videoId });
+    showToast('🚀 تم تحميل الفيديو وإرساله لجميع الأطراف');
+  }
+
+  function userForceSync() {
+    if (!isPlayerReady || !ytPlayer) return showToast('المشغل غير جاهز بعد');
+    const currentTime = ytPlayer.getCurrentTime ? ytPlayer.getCurrentTime() : 0;
+    const isPlaying = ytPlayer.getPlayerState ? ytPlayer.getPlayerState() === YT.PlayerState.PLAYING : false;
+    const rate = ytPlayer.getPlaybackRate ? ytPlayer.getPlaybackRate() : 1;
+
+    broadcastSignal({
+      type: 'FORCE_SYNC',
+      currentTime: currentTime,
+      isPlaying: isPlaying,
+      rate: rate
+    });
+    showToast('🔄 تم إرسال أمر المزامنة الإجبارية للجميع');
+  }
+
+  // --- 5. Helper Functions ---
+  function extractVideoId(url) {
+    if (/^[a-zA-Z0-9_-]{11}$/.test(url)) return url;
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+  }
+
+  function updateStatus(state, text) {
+    const badge = document.getElementById('status-badge');
+    const textEl = document.getElementById('status-text');
+    badge.className = `badge badge-${state}`;
+    textEl.innerText = text;
+  }
+
+  function updatePeerCountUI() {
+    document.getElementById('peer-count').innerText = `${activeConnections.size} متصلين`;
+  }
+
+  function copyMyId() {
+    const myId = document.getElementById('my-id').innerText;
+    if (!myId || myId.includes('جاري')) return showToast('لم يتم تجهيز المعرف بعد');
+    navigator.clipboard.writeText(myId);
+    showToast('📋 تم نسخ ID الغرفة إلى الحافظة');
+  }
+
+  function copyRoomLink() {
+    const myId = document.getElementById('my-id').innerText;
+    if (!myId || myId.includes('جاري')) return showToast('لم يتم تجهيز المعرف بعد');
+    const roomUrl = `${window.location.origin}${window.location.pathname}?room=${myId}`;
+    navigator.clipboard.writeText(roomUrl);
+    showToast('🔗 تم نسخ رابط الغرفة المباشر للحافظة');
+  }
+
+  function showToast(message) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.innerText = message;
+    container.appendChild(toast);
+
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateY(10px)';
+      toast.style.transition = 'all 0.3s ease';
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
+  }
+
+  // Run on page load
+  window.addEventListener('DOMContentLoaded', () => {
+    initPeerJS();
+  });
+</script>
+
+</body>
+</html>
