@@ -388,7 +388,7 @@
       scroll-behavior: smooth;
     }
 
-    /* Professional Glass Scrollbar for Chat & Containers */
+    /* Professional Glass Scrollbar */
     .chat-messages-container::-webkit-scrollbar,
     .custom-scroll::-webkit-scrollbar {
       width: 6px;
@@ -456,6 +456,53 @@
       justify-content: flex-end;
       gap: 4px;
       margin-top: 4px;
+    }
+
+    /* Checkmark Status Icons */
+    .chat-check {
+      font-size: 0.85rem;
+      font-weight: bold;
+      transition: all 0.2s ease;
+    }
+    .chat-check-sent {
+      color: #8696a0; /* Single grey check ✓ */
+    }
+    .chat-check-delivered {
+      color: #53bdeb; /* WhatsApp Blue Double Check ✓✓ */
+    }
+
+    /* Inline Progress Bar Under Element */
+    .wa-upload-progress {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 8px;
+      overflow: hidden;
+      height: 20px;
+      position: relative;
+      margin-top: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .wa-upload-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      background: linear-gradient(90deg, #00a884, #38bdf8);
+      width: 0%;
+      transition: width 0.15s ease;
+    }
+
+    .wa-upload-text {
+      position: relative;
+      z-index: 2;
+      font-size: 0.75rem;
+      font-weight: bold;
+      color: #fff;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.8);
     }
 
     /* WhatsApp Media Cards */
@@ -894,13 +941,16 @@
     showToast('🎵 نغمة التنبيه الصوتية تعمل بشكل رائع!');
   }
 
-  // --- 2. WhatsApp Style Chat Engine with Upload Progress Percentage ---
+  // --- 2. WhatsApp Style Chat Engine with Inline Progress Bar & Blue Double Checkmarks ---
   function sendTextMessage() {
     const input = document.getElementById('chat-text-input');
     const text = input.value.trim();
     if (!text) return;
 
+    const msgId = 'msg-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6);
+
     const msgData = {
+      id: msgId,
       type: 'CHAT_MSG',
       msgType: 'text',
       content: text,
@@ -921,49 +971,67 @@
       return showToast('⚠️ يرجى اختيار ملف بحجم أقل من 25 ميجابايت');
     }
 
-    const toastEl = createProgressToast(`⏳ جاري المعالجة: 0%`);
+    const msgId = 'msg-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6);
+    let msgType = 'image';
+    if (file.type.startsWith('video/')) msgType = 'video';
+    else if (file.type.startsWith('audio/')) msgType = 'audio';
+
+    const tempUrl = URL.createObjectURL(file);
+
+    const pendingMsgData = {
+      id: msgId,
+      type: 'CHAT_MSG',
+      msgType: msgType,
+      content: tempUrl,
+      fileName: file.name,
+      sender: getOrCreatePersistentPeerId(),
+      time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
+      isUploading: true
+    };
+
+    // Render bubble immediately with inline progress bar under the element
+    appendChatMessage(pendingMsgData, true);
 
     const reader = new FileReader();
 
     reader.onprogress = (e) => {
       if (e.lengthComputable) {
         const pct = Math.round((e.loaded / e.total) * 100);
-        toastEl.innerText = `⏳ جاري رفع الملف: ${pct}%`;
+        updateInlineUploadProgress(msgId, pct);
       }
     };
 
     reader.onload = (e) => {
-      let msgType = 'image';
-      if (file.type.startsWith('video/')) msgType = 'video';
-      else if (file.type.startsWith('audio/')) msgType = 'audio';
+      finishInlineUpload(msgId);
 
-      const msgData = {
+      const finalMsgData = {
+        id: msgId,
         type: 'CHAT_MSG',
         msgType: msgType,
         content: e.target.result,
         fileName: file.name,
         sender: getOrCreatePersistentPeerId(),
-        time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+        time: pendingMsgData.time,
+        isUploading: false
       };
 
-      appendChatMessage(msgData, true);
-      broadcastSignal(msgData);
+      broadcastSignal(finalMsgData);
       fileInput.value = '';
-      toastEl.innerText = `✅ اكتمل الرفع بنجاح 100%`;
-      setTimeout(() => toastEl.remove(), 2500);
     };
 
     reader.readAsDataURL(file);
   }
 
-  function createProgressToast(text) {
-    const container = document.getElementById('toast-container');
-    const toast = document.createElement('div');
-    toast.className = 'toast';
-    toast.style.borderColor = 'rgba(0, 168, 132, 0.6)';
-    toast.innerText = text;
-    container.appendChild(toast);
-    return toast;
+  function updateInlineUploadProgress(msgId, pct) {
+    const bar = document.getElementById(`progress-bar-${msgId}`);
+    const text = document.getElementById(`progress-text-${msgId}`);
+    if (bar) bar.style.width = `${pct}%`;
+    if (text) text.innerText = `⏳ جاري رفع الملف: ${pct}%`;
+  }
+
+  function finishInlineUpload(msgId) {
+    const box = document.getElementById(`progress-box-${msgId}`);
+    if (box) box.style.display = 'none';
   }
 
   async function toggleVoiceRecording() {
@@ -977,10 +1045,12 @@
 
         mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
         mediaRecorder.onstop = () => {
+          const msgId = 'msg-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6);
           const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
           const reader = new FileReader();
           reader.onloadend = () => {
             const msgData = {
+              id: msgId,
               type: 'CHAT_MSG',
               msgType: 'audio',
               content: reader.result,
@@ -1014,8 +1084,16 @@
 
   function appendChatMessage(msgData, isMe) {
     const container = document.getElementById('chat-messages');
-    const bubble = document.createElement('div');
-    bubble.className = `chat-bubble ${isMe ? 'chat-bubble-me' : 'chat-bubble-peer'}`;
+    
+    // Check if bubble already exists (updating uploaded preview)
+    let bubble = document.getElementById(`bubble-${msgData.id}`);
+    const isNew = !bubble;
+
+    if (isNew) {
+      bubble = document.createElement('div');
+      bubble.id = `bubble-${msgData.id}`;
+      bubble.className = `chat-bubble ${isMe ? 'chat-bubble-me' : 'chat-bubble-peer'}`;
+    }
 
     let senderHtml = `<div class="chat-sender-title">${isMe ? 'أنت' : msgData.sender}</div>`;
     let bodyHtml = '';
@@ -1043,22 +1121,45 @@
       `;
     }
 
-    const checkmarks = isMe ? `<span class="chat-check">✓✓</span>` : '';
+    // Inline progress bar directly under media item
+    let progressHtml = '';
+    if (isMe && msgData.isUploading) {
+      progressHtml = `
+        <div class="wa-upload-progress" id="progress-box-${msgData.id}">
+          <div class="wa-upload-bar" id="progress-bar-${msgData.id}" style="width: 0%"></div>
+          <span class="wa-upload-text" id="progress-text-${msgData.id}">⏳ جاري التحميل: 0%</span>
+        </div>
+      `;
+    }
+
+    const checkIcon = isMe ? `<span id="status-${msgData.id}" class="chat-check chat-check-sent">✓</span>` : '';
 
     bubble.innerHTML = `
       ${senderHtml}
       ${bodyHtml}
+      ${progressHtml}
       <div class="chat-meta-bar">
         <span>${msgData.time || ''}</span>
-        ${checkmarks}
+        ${checkIcon}
       </div>
     `;
 
-    container.appendChild(bubble);
+    if (isNew) {
+      container.appendChild(bubble);
+    }
+
     container.scrollTop = container.scrollHeight;
 
     if (!isMe) {
       playNotificationChime();
+    }
+  }
+
+  function markMessageDelivered(msgId) {
+    const statusEl = document.getElementById(`status-${msgId}`);
+    if (statusEl) {
+      statusEl.innerText = '✓✓';
+      statusEl.className = 'chat-check chat-check-delivered';
     }
   }
 
@@ -1663,6 +1764,14 @@
     switch (data.type) {
       case 'CHAT_MSG':
         appendChatMessage(data, false);
+        // Reply back with ACK to update sender's checkmark to blue double check (✓✓)
+        if (data.id && senderConn && senderConn.open) {
+          senderConn.send({ type: 'MSG_ACK', id: data.id });
+        }
+        break;
+
+      case 'MSG_ACK':
+        markMessageDelivered(data.id);
         break;
 
       case 'EXECUTE_REMOTE_CLICK':
