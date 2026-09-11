@@ -876,6 +876,9 @@
   let audioChunks = [];
   let isVoiceRecording = false;
 
+  // Message ACK State
+  const deliveredMessageIds = new Set();
+
   // Auto-Reconnect State
   let isAutoReconnecting = false;
   let autoReconnectTimer = null;
@@ -1132,7 +1135,8 @@
       `;
     }
 
-    const checkIcon = isMe ? `<span id="status-${msgData.id}" class="chat-check chat-check-sent">✓</span>` : '';
+    const isDelivered = deliveredMessageIds.has(msgData.id);
+    const checkIcon = isMe ? `<span id="status-${msgData.id}" class="chat-check ${isDelivered ? 'chat-check-delivered' : 'chat-check-sent'}">${isDelivered ? '✓✓' : '✓'}</span>` : '';
 
     bubble.innerHTML = `
       ${senderHtml}
@@ -1156,6 +1160,8 @@
   }
 
   function markMessageDelivered(msgId) {
+    if (!msgId) return;
+    deliveredMessageIds.add(msgId);
     const statusEl = document.getElementById(`status-${msgId}`);
     if (statusEl) {
       statusEl.innerText = '✓✓';
