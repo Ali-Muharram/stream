@@ -1024,6 +1024,20 @@
   <img id="image-modal-img" src="" style="max-width:90%; max-height:90%; border-radius:12px; box-shadow:0 0 30px rgba(0,0,0,0.9);">
 </div>
 
+<!-- PDF Lightbox Modal -->
+<div class="modal-overlay" id="pdf-modal">
+  <div class="modal-card" style="width: 88vw; max-width: 900px; height: 85vh; padding: 16px; display: flex; flex-direction: column;">
+    <div class="modal-header" style="margin-bottom: 10px;">
+      <h3 style="font-weight: 800; font-size: 1rem; color: #fff;" id="pdf-modal-title">📄 معاينة مستند PDF</h3>
+      <div style="display:flex; gap:8px;">
+        <a id="pdf-modal-download" href="" download="" class="btn btn-primary btn-sm">📥 تحميل</a>
+        <button class="btn btn-secondary btn-sm" onclick="closePdfModal()">✕ إغلاق</button>
+      </div>
+    </div>
+    <iframe id="pdf-modal-iframe" src="" style="flex: 1; width: 100%; border: none; border-radius: 8px; background: #fff;"></iframe>
+  </div>
+</div>
+
 <!-- Toast Container -->
 <div id="toast-container"></div>
 
