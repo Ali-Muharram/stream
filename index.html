@@ -399,6 +399,8 @@
   let currentVideoId = 'dQw4w9WgXcQ'; // Default video ID
   let isAdPlaying = false;
   let lastRecordedRate = 1;
+  let lastRecordedMuted = false;
+  let lastRecordedVolume = 100;
 
   // --- 1. YouTube IFrame API Initialization ---
   function onYouTubeIframeAPIReady() {
@@ -417,6 +419,7 @@
         'onReady': onPlayerReady,
         'onStateChange': onPlayerStateChange,
         'onPlaybackRateChange': onPlaybackRateChange,
+        'onPlaybackQualityChange': onPlaybackQualityChange,
         'onError': onPlayerError
       }
     });
@@ -424,7 +427,9 @@
 
   function onPlayerReady(event) {
     isPlayerReady = true;
-    showToast('جاهز لتشغيل الميديا عبر أزرار يوتيوب المباشرة 🎬');
+    if (ytPlayer.isMuted) lastRecordedMuted = ytPlayer.isMuted();
+    if (ytPlayer.getVolume) lastRecordedVolume = ytPlayer.getVolume();
+    showToast('جاهز لتشغيل ومزامنة أزرار يوتيوب المباشرة بالكامل 🎬');
   }
 
   let lastRecordedTime = 0;
@@ -434,7 +439,6 @@
   function checkIsAd() {
     if (!ytPlayer || !ytPlayer.getVideoData) return false;
     const data = ytPlayer.getVideoData();
-    // If videoData flags as ad or title indicates ad transition
     return (data && (data.isAd || data.ad_device));
   }
 
@@ -483,12 +487,20 @@
     showToast(`⚡ تم تغيير سرعة التشغيل إلى: ${newRate}x`);
   }
 
+  // Handle YouTube native playback quality changes (e.g. 720p, 1080p, hd)
+  function onPlaybackQualityChange(event) {
+    if (isRemoteAction) return;
+    const newQuality = event.data;
+    broadcastSignal({ type: 'QUALITY_CHANGE', quality: newQuality });
+    showToast(`📐 تم تغيير جودة الفيديو إلى: ${newQuality}`);
+  }
+
   function onPlayerError(event) {
     console.warn('YouTube Player Error:', event.data);
     showToast('⚠️ يتعذر تشغيل بعض الفيديوهات بسبب قيود التضمين في يوتيوب');
   }
 
-  // Periodic Timeline & Speed & Ad Monitor for YouTube Player
+  // Periodic Monitor for All Native YouTube Controls (Timeline, Speed, Volume, Mute, Ads)
   setInterval(() => {
     if (!isPlayerReady || !ytPlayer || !ytPlayer.getCurrentTime) return;
 
@@ -505,8 +517,23 @@
     const now = Date.now();
     const state = ytPlayer.getPlayerState ? ytPlayer.getPlayerState() : -1;
     const currentRate = ytPlayer.getPlaybackRate ? ytPlayer.getPlaybackRate() : 1;
+    const isMuted = ytPlayer.isMuted ? ytPlayer.isMuted() : false;
+    const volume = ytPlayer.getVolume ? ytPlayer.getVolume() : 100;
 
-    // Check rate changes if event missed
+    // 1. Check Volume & Mute Changes
+    if (!isRemoteAction) {
+      if (isMuted !== lastRecordedMuted) {
+        lastRecordedMuted = isMuted;
+        broadcastSignal({ type: 'VOLUME_CHANGE', isMuted: isMuted, volume: volume });
+        showToast(`🔊 تم ${isMuted ? 'كتم' : 'تشغيل'} الصوت لدى الجميع`);
+      } else if (Math.abs(volume - lastRecordedVolume) > 5) {
+        lastRecordedVolume = volume;
+        broadcastSignal({ type: 'VOLUME_CHANGE', isMuted: isMuted, volume: volume });
+        showToast(`🔊 تم تغيير مستوى الصوت إلى: ${volume}%`);
+      }
+    }
+
+    // 2. Check Rate Changes
     if (currentRate !== lastRecordedRate && !isRemoteAction) {
       lastRecordedRate = currentRate;
       broadcastSignal({ type: 'RATE_CHANGE', rate: currentRate });
@@ -515,10 +542,12 @@
     if (isRemoteAction) {
       lastRecordedTime = currentTime;
       lastCheckTimestamp = now;
+      lastRecordedMuted = isMuted;
+      lastRecordedVolume = volume;
       return;
     }
 
-    // Native timeline drag detection
+    // 3. Native Timeline Drag / Seek Detection
     if (state === YT.PlayerState.PLAYING) {
       const elapsedSeconds = ((now - lastCheckTimestamp) / 1000) * currentRate;
       const expectedTime = lastRecordedTime + elapsedSeconds;
@@ -534,7 +563,7 @@
 
     lastRecordedTime = currentTime;
     lastCheckTimestamp = now;
-  }, 400);
+  }, 350);
 
   // --- 2. PeerJS Setup & Connection Handling ---
   function initPeerJS() {
@@ -674,6 +703,24 @@
         if (ytPlayer.setPlaybackRate) {
           ytPlayer.setPlaybackRate(data.rate);
           showToast(`⚡ تم تغيير سرعة التشغيل إلى: ${data.rate}x`);
+        }
+        break;
+
+      case 'VOLUME_CHANGE':
+        if (data.isMuted) {
+          if (ytPlayer.mute) ytPlayer.mute();
+          showToast('🔊 تم كتم الصوت بواسطة الطرف الآخر');
+        } else {
+          if (ytPlayer.unMute) ytPlayer.unMute();
+          if (ytPlayer.setVolume && data.volume !== undefined) ytPlayer.setVolume(data.volume);
+          showToast(`🔊 تم تغيير الصوت إلى: ${data.volume}% بواسطة الطرف الآخر`);
+        }
+        break;
+
+      case 'QUALITY_CHANGE':
+        if (ytPlayer.setPlaybackQuality) {
+          ytPlayer.setPlaybackQuality(data.quality);
+          showToast(`📐 تم تغيير جودة الفيديو إلى: ${data.quality}`);
         }
         break;
 
