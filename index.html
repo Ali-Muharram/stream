@@ -160,14 +160,14 @@
     /* Remote Peer Cursor Marker */
     .remote-cursor {
       position: absolute;
-      width: 20px;
-      height: 20px;
-      background: rgba(236, 72, 153, 0.85);
+      width: 22px;
+      height: 22px;
+      background: rgba(236, 72, 153, 0.9);
       border: 2px solid #fff;
       border-radius: 50%;
       pointer-events: none;
       transform: translate(-50%, -50%);
-      box-shadow: 0 0 15px rgba(236, 72, 153, 0.9);
+      box-shadow: 0 0 20px rgba(236, 72, 153, 1);
       transition: top 0.1s ease-out, left 0.1s ease-out;
       z-index: 99;
       display: flex;
@@ -178,11 +178,11 @@
     .remote-cursor::after {
       content: attr(data-peer);
       position: absolute;
-      top: 22px;
+      top: 24px;
       right: -10px;
-      background: rgba(15, 23, 42, 0.9);
+      background: rgba(15, 23, 42, 0.95);
       color: #fff;
-      padding: 2px 8px;
+      padding: 3px 8px;
       border-radius: 6px;
       font-size: 0.75rem;
       white-space: nowrap;
@@ -192,9 +192,10 @@
     /* Click Ripple Effect */
     .click-ripple {
       position: absolute;
-      width: 40px;
-      height: 40px;
+      width: 44px;
+      height: 44px;
       border: 2px solid var(--accent);
+      background: rgba(236, 72, 153, 0.2);
       border-radius: 50%;
       pointer-events: none;
       transform: translate(-50%, -50%) scale(0.2);
@@ -487,13 +488,13 @@
 
       <!-- iFrame Navigation & Scroll Synchronization Controller Bar -->
       <div class="iframe-controls-bar">
-        <span style="font-size:0.85rem; color:var(--text-muted);">تحكم الـ iFrame والموقع:</span>
+        <span style="font-size:0.85rem; color:var(--text-muted);">تزامن تحكم الـ iFrame والموقع:</span>
         <button class="btn btn-secondary btn-sm" onclick="userReloadIframe()">🔄 إعادة تحميل الصفحة</button>
         <button class="btn btn-secondary btn-sm" onclick="userScrollIframe('top')">⬆️ أعلى الصفحة</button>
         <button class="btn btn-secondary btn-sm" onclick="userScrollIframe('down')">⬇️ أسفل الصفحة</button>
         
         <div style="display:inline-flex; align-items:center; gap:6px; margin-right:auto;">
-          <label style="font-size:0.8rem; color:var(--text-muted);">تزامن مؤشر الماوس:</label>
+          <label style="font-size:0.8rem; color:var(--text-muted);">مؤشر الماوس والسكرول:</label>
           <input type="checkbox" id="toggle-laser-pointer" checked onchange="toggleLaserPointerState()">
         </div>
       </div>
@@ -640,12 +641,23 @@
     }, 3000);
   }
 
-  // --- 4. Interactive Laser Pointer & Mouse Sync for iFrame Co-Browsing ---
+  // --- 4. iFrame Wheel Scroll & Click Sync Engine (مزامنة السكرول والنقر داخل الـ iFrame) ---
   function toggleLaserPointerState() {
     enableLaserPointer = document.getElementById('toggle-laser-pointer').checked;
-    showToast(`مؤشر الليزر التفاعلي: ${enableLaserPointer ? 'مفعل ✅' : 'معطل ❌'}`);
+    showToast(`مؤشر الماوس والسكرول: ${enableLaserPointer ? 'مفعل ✅' : 'معطل ❌'}`);
   }
 
+  // Capture Mouse Scroll (Wheel) Over iFrame Area
+  mainPlayerBox.addEventListener('wheel', (e) => {
+    if (!enableLaserPointer || activeConnections.size === 0) return;
+    
+    broadcastSignal({
+      type: 'IFRAME_WHEEL_SCROLL',
+      deltaY: e.deltaY
+    });
+  }, { passive: true });
+
+  // Capture Clicks & Mouse Movement Over iFrame Area
   mainPlayerBox.addEventListener('mousemove', (e) => {
     if (!enableLaserPointer || activeConnections.size === 0) return;
     const rect = mainPlayerBox.getBoundingClientRect();
@@ -697,7 +709,6 @@
       setTimeout(() => ripple.remove(), 600);
     }
 
-    // Auto-hide cursor after inactivity
     clearTimeout(cursor.hideTimeout);
     cursor.hideTimeout = setTimeout(() => {
       cursor.style.opacity = '0';
@@ -706,11 +717,10 @@
 
   // --- 5. PostMessage & iFrame Controller ---
   window.addEventListener('message', (event) => {
-    // Intercept and sync postMessage from embedded players/iframes
     if (isRemoteAction || !event.data) return;
     try {
       const payload = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-      if (payload && payload.event) {
+      if (payload && (payload.event || payload.type || payload.action)) {
         broadcastSignal({ type: 'IFRAME_POSTMESSAGE', payload: payload });
       }
     } catch(e) {}
@@ -727,8 +737,23 @@
   }
 
   function userScrollIframe(direction) {
-    broadcastSignal({ type: 'IFRAME_SCROLL', direction: direction });
-    showToast(`📜 تم إرسال أمر التمرير (${direction === 'top' ? 'للأعلى' : 'للأسفل'})`);
+    const deltaY = direction === 'top' ? -500 : 500;
+    performScrollOnScreen(deltaY);
+    broadcastSignal({ type: 'IFRAME_WHEEL_SCROLL', deltaY: deltaY });
+    showToast(`📜 تم التمرير (${direction === 'top' ? 'للأعلى' : 'للأسفل'})`);
+  }
+
+  function performScrollOnScreen(deltaY) {
+    if (activeEngine === 'html5') {
+      html5Video.scrollBy({ top: deltaY, behavior: 'smooth' });
+    } else if (activeEngine === 'iframe') {
+      try {
+        if (iframePlayer.contentWindow) {
+          iframePlayer.contentWindow.scrollBy({ top: deltaY, behavior: 'smooth' });
+        }
+      } catch(e) {}
+    }
+    window.scrollBy({ top: deltaY, behavior: 'smooth' });
   }
 
   // --- 6. Universal Engine Switcher & Detection ---
@@ -965,7 +990,7 @@
     }
   }, 350);
 
-  // --- 10. PeerJS Setup & Universal Signal Router ---
+  // --- 10. PeerJS Setup & Router ---
   function initPeerJS() {
     updateStatus('connecting', 'جاري الاتصال بالسيرفر...');
 
@@ -1096,14 +1121,15 @@
         renderRemotePointer(senderConn.peer, data.xPct, data.yPct, data.isClick);
         break;
 
+      case 'IFRAME_WHEEL_SCROLL':
+        performScrollOnScreen(data.deltaY);
+        showToast(`📜 تم التمرير (${data.deltaY > 0 ? 'للأسفل' : 'للأعلى'}) بواسطة الطرف الآخر`);
+        break;
+
       case 'IFRAME_RELOAD':
         if (activeEngine === 'iframe') iframePlayer.src = iframePlayer.src;
         else if (activeEngine === 'html5') html5Video.load();
         showToast('🔄 تم إرسال أمر إعادة تحميل الصفحة بواسطة الطرف الآخر');
-        break;
-
-      case 'IFRAME_SCROLL':
-        showToast(`📜 تم التمرير (${data.direction === 'top' ? 'للأعلى' : 'للأسفل'}) بواسطة الطرف الآخر`);
         break;
 
       case 'IFRAME_POSTMESSAGE':
