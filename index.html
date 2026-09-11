@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Universal Video Sync Cinema - مشاهدة تزامنية لكافة المواقع والفيديوهات</title>
+  <title>Universal Video & iFrame Co-Sync Cinema - مشاهدة ومزامنة متكاملة</title>
   
   <!-- خط Google Fonts Tajawal -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -50,7 +50,6 @@
       align-items: center;
     }
 
-    /* Main App Layout */
     .app-container {
       width: 100%;
       max-width: 1400px;
@@ -147,6 +146,69 @@
       border: none;
     }
 
+    /* Interactive Pointer Layer for iFrame Co-Browsing */
+    #pointer-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    /* Remote Peer Cursor Marker */
+    .remote-cursor {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      background: rgba(236, 72, 153, 0.85);
+      border: 2px solid #fff;
+      border-radius: 50%;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 15px rgba(236, 72, 153, 0.9);
+      transition: top 0.1s ease-out, left 0.1s ease-out;
+      z-index: 99;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .remote-cursor::after {
+      content: attr(data-peer);
+      position: absolute;
+      top: 22px;
+      right: -10px;
+      background: rgba(15, 23, 42, 0.9);
+      color: #fff;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      white-space: nowrap;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    /* Click Ripple Effect */
+    .click-ripple {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      border: 2px solid var(--accent);
+      border-radius: 50%;
+      pointer-events: none;
+      transform: translate(-50%, -50%) scale(0.2);
+      animation: ripple 0.6s cubic-bezier(0, 0.2, 0.8, 1) forwards;
+      z-index: 98;
+    }
+
+    @keyframes ripple {
+      to {
+        transform: translate(-50%, -50%) scale(2.5);
+        opacity: 0;
+      }
+    }
+
     /* Controls & Connection Panel Grid */
     .panels-grid {
       display: grid;
@@ -156,7 +218,7 @@
 
     @media (min-width: 992px) {
       .panels-grid {
-        grid-template-columns: 1.3fr 0.7fr;
+        grid-template-columns: 1.2fr 0.8fr;
       }
     }
 
@@ -275,6 +337,17 @@
       color: #fff;
     }
 
+    /* iFrame Toolbar Controller */
+    .iframe-controls-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--card-border);
+      flex-wrap: wrap;
+    }
+
     /* Badges & Status */
     .badge {
       display: inline-flex;
@@ -355,7 +428,7 @@
   <div class="navbar">
     <div class="brand">
       <span style="font-size: 1.5rem;">🌐</span>
-      <h1>Universal Video Sync Cinema</h1>
+      <h1>Universal Video & iFrame Co-Sync Cinema</h1>
     </div>
 
     <div class="nav-actions">
@@ -378,13 +451,18 @@
 
   <!-- Universal Multi-Engine Video Player Container -->
   <div class="cinema-wrapper">
-    <div class="player-container">
+    <div class="player-container" id="main-player-box">
+      <!-- Interactive Remote Mouse & Pointer Laser Overlay -->
+      <div id="pointer-overlay"></div>
+
       <!-- YouTube API Player Wrapper -->
       <div id="yt-player-wrapper" class="player-wrapper">
         <div id="player"></div>
       </div>
+
       <!-- HTML5 Direct Video Player (MP4 / WebM / OGG / HLS / M3U8) -->
       <video id="html5-player" class="player-wrapper" controls style="display:none; width:100%; height:100%; object-fit:contain; background:#000;"></video>
+
       <!-- Generic iFrame Embed Player (Vimeo, Dailymotion, Custom Sites) -->
       <iframe id="iframe-player" class="player-wrapper" style="display:none; width:100%; height:100%; border:none;" allow="autoplay; fullscreen; encrypted-media" allowfullscreen></iframe>
     </div>
@@ -392,7 +470,7 @@
 
   <!-- Control & Connection Panels -->
   <div class="panels-grid">
-    <!-- Video Loader Card -->
+    <!-- Video Loader Card with Full iFrame Co-Browsing Controller -->
     <div class="card">
       <div class="card-title">
         <div style="display:flex; align-items:center; gap:8px;">
@@ -401,9 +479,23 @@
         </div>
         <button class="btn btn-secondary btn-sm" onclick="userForceSync()" title="إعادة مزامنة الوقت والسرعة فورياً">🔄 مزامنة الوقت الآن</button>
       </div>
+      
       <div class="input-group">
         <input type="text" id="video-url-input" placeholder="أدخل رابط من YouTube, Vimeo, Dailymotion, أو رابط MP4/M3U8 مباشر...">
         <button class="btn btn-primary" onclick="userLoadAndSyncVideo()">تغيير للجميع 🚀</button>
+      </div>
+
+      <!-- iFrame Navigation & Scroll Synchronization Controller Bar -->
+      <div class="iframe-controls-bar">
+        <span style="font-size:0.85rem; color:var(--text-muted);">تحكم الـ iFrame والموقع:</span>
+        <button class="btn btn-secondary btn-sm" onclick="userReloadIframe()">🔄 إعادة تحميل الصفحة</button>
+        <button class="btn btn-secondary btn-sm" onclick="userScrollIframe('top')">⬆️ أعلى الصفحة</button>
+        <button class="btn btn-secondary btn-sm" onclick="userScrollIframe('down')">⬇️ أسفل الصفحة</button>
+        
+        <div style="display:inline-flex; align-items:center; gap:6px; margin-right:auto;">
+          <label style="font-size:0.8rem; color:var(--text-muted);">تزامن مؤشر الماوس:</label>
+          <input type="checkbox" id="toggle-laser-pointer" checked onchange="toggleLaserPointerState()">
+        </div>
       </div>
     </div>
 
@@ -418,7 +510,7 @@
         <button class="btn btn-primary" onclick="connectToPeer()">اتصال ⚡</button>
       </div>
 
-      <!-- Saved Friends / Auto-Reconnect Bar -->
+      <!-- Saved Friends Bar -->
       <div id="recent-peers-wrapper" style="margin-top: 10px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 0.8rem; color: var(--text-muted);">
         <span>الأصدقاء السابقون:</span>
         <div id="recent-peers-list" style="display: flex; gap: 6px; flex-wrap: wrap;">
@@ -448,6 +540,7 @@
   let activeEngine = 'youtube'; // 'youtube' | 'html5' | 'iframe'
   let currentSourceUrl = 'dQw4w9WgXcQ';
   let isAdPlaying = false;
+  let enableLaserPointer = true;
 
   let lastRecordedRate = 1;
   let lastRecordedMuted = false;
@@ -463,8 +556,10 @@
   const html5Video = document.getElementById('html5-player');
   const iframePlayer = document.getElementById('iframe-player');
   const ytWrapper = document.getElementById('yt-player-wrapper');
+  const mainPlayerBox = document.getElementById('main-player-box');
+  const pointerOverlay = document.getElementById('pointer-overlay');
 
-  // --- 1. Persistent Peer ID Management (تثبيت ID الجهاز تلقائياً) ---
+  // --- 1. Persistent Peer ID Management ---
   function getOrCreatePersistentPeerId() {
     let savedId = localStorage.getItem('my_persistent_peer_id');
     if (!savedId) {
@@ -486,7 +581,7 @@
     }
   }
 
-  // --- 2. Save Connected Friends & Recent History (تسجيل الـ ID للطرف الثاني) ---
+  // --- 2. Save Connected Friends & History ---
   function saveRecentPeer(remoteId) {
     if (!remoteId || remoteId === getOrCreatePersistentPeerId()) return;
     localStorage.setItem('last_connected_peer_id', remoteId);
@@ -515,7 +610,7 @@
     `).join('');
   }
 
-  // --- 3. Auto-Reconnect Engine (إعادة الاتصال التلقائي عند الانقطاع) ---
+  // --- 3. Auto-Reconnect Engine ---
   function startAutoReconnectProcess(remoteId) {
     if (!remoteId || isAutoReconnecting) return;
     targetAutoReconnectId = remoteId;
@@ -527,7 +622,6 @@
     if (autoReconnectTimer) clearInterval(autoReconnectTimer);
 
     autoReconnectTimer = setInterval(() => {
-      // If already reconnected
       if (activeConnections.has(targetAutoReconnectId) && activeConnections.get(targetAutoReconnectId).open) {
         clearInterval(autoReconnectTimer);
         isAutoReconnecting = false;
@@ -546,7 +640,98 @@
     }, 3000);
   }
 
-  // --- 4. Universal Engine Switcher & Detection ---
+  // --- 4. Interactive Laser Pointer & Mouse Sync for iFrame Co-Browsing ---
+  function toggleLaserPointerState() {
+    enableLaserPointer = document.getElementById('toggle-laser-pointer').checked;
+    showToast(`مؤشر الليزر التفاعلي: ${enableLaserPointer ? 'مفعل ✅' : 'معطل ❌'}`);
+  }
+
+  mainPlayerBox.addEventListener('mousemove', (e) => {
+    if (!enableLaserPointer || activeConnections.size === 0) return;
+    const rect = mainPlayerBox.getBoundingClientRect();
+    const xPct = ((e.clientX - rect.left) / rect.width) * 100;
+    const yPct = ((e.clientY - rect.top) / rect.height) * 100;
+
+    broadcastSignal({
+      type: 'REMOTE_POINTER',
+      xPct: xPct,
+      yPct: yPct,
+      isClick: false
+    });
+  });
+
+  mainPlayerBox.addEventListener('click', (e) => {
+    if (activeConnections.size === 0) return;
+    const rect = mainPlayerBox.getBoundingClientRect();
+    const xPct = ((e.clientX - rect.left) / rect.width) * 100;
+    const yPct = ((e.clientY - rect.top) / rect.height) * 100;
+
+    broadcastSignal({
+      type: 'REMOTE_POINTER',
+      xPct: xPct,
+      yPct: yPct,
+      isClick: true
+    });
+  });
+
+  function renderRemotePointer(senderId, xPct, yPct, isClick) {
+    let cursor = document.getElementById(`cursor-${senderId}`);
+    if (!cursor) {
+      cursor = document.createElement('div');
+      cursor.id = `cursor-${senderId}`;
+      cursor.className = 'remote-cursor';
+      cursor.setAttribute('data-peer', senderId);
+      pointerOverlay.appendChild(cursor);
+    }
+
+    cursor.style.left = `${xPct}%`;
+    cursor.style.top = `${yPct}%`;
+    cursor.style.opacity = '1';
+
+    if (isClick) {
+      const ripple = document.createElement('div');
+      ripple.className = 'click-ripple';
+      ripple.style.left = `${xPct}%`;
+      ripple.style.top = `${yPct}%`;
+      pointerOverlay.appendChild(ripple);
+      setTimeout(() => ripple.remove(), 600);
+    }
+
+    // Auto-hide cursor after inactivity
+    clearTimeout(cursor.hideTimeout);
+    cursor.hideTimeout = setTimeout(() => {
+      cursor.style.opacity = '0';
+    }, 2500);
+  }
+
+  // --- 5. PostMessage & iFrame Controller ---
+  window.addEventListener('message', (event) => {
+    // Intercept and sync postMessage from embedded players/iframes
+    if (isRemoteAction || !event.data) return;
+    try {
+      const payload = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+      if (payload && payload.event) {
+        broadcastSignal({ type: 'IFRAME_POSTMESSAGE', payload: payload });
+      }
+    } catch(e) {}
+  });
+
+  function userReloadIframe() {
+    if (activeEngine === 'iframe') {
+      iframePlayer.src = iframePlayer.src;
+    } else if (activeEngine === 'html5') {
+      html5Video.load();
+    }
+    broadcastSignal({ type: 'IFRAME_RELOAD' });
+    showToast('🔄 تم إرسال أمر إعادة تحميل الصفحة للجميع');
+  }
+
+  function userScrollIframe(direction) {
+    broadcastSignal({ type: 'IFRAME_SCROLL', direction: direction });
+    showToast(`📜 تم إرسال أمر التمرير (${direction === 'top' ? 'للأعلى' : 'للأسفل'})`);
+  }
+
+  // --- 6. Universal Engine Switcher & Detection ---
   function detectSourceType(url) {
     if (!url) return 'youtube';
     const trimmed = url.trim();
@@ -611,7 +796,7 @@
     }
   }
 
-  // --- 5. HTML5 Video Event Listeners ---
+  // --- 7. HTML5 Video Event Listeners ---
   html5Video.addEventListener('play', () => {
     if (isRemoteAction || activeEngine !== 'html5') return;
     broadcastSignal({ type: 'PLAY', currentTime: html5Video.currentTime, rate: html5Video.playbackRate });
@@ -647,7 +832,7 @@
     broadcastSignal({ type: 'ENDED' });
   });
 
-  // --- 6. YouTube IFrame API Handler ---
+  // --- 8. YouTube IFrame API Handler ---
   function onYouTubeIframeAPIReady() {
     ytPlayer = new YT.Player('player', {
       height: '100%',
@@ -729,7 +914,7 @@
     showToast('⚠️ يتعذر تشغيل المصدر بسبب قيود التضمين للموقع الاصلي');
   }
 
-  // --- 7. Periodic Monitor ---
+  // --- 9. Periodic Monitor ---
   setInterval(() => {
     if (activeEngine === 'youtube' && isPlayerReady && ytPlayer && ytPlayer.getCurrentTime) {
       if (checkIsAd()) {
@@ -780,12 +965,11 @@
     }
   }, 350);
 
-  // --- 8. PeerJS Setup & Persistent Device Registration ---
+  // --- 10. PeerJS Setup & Universal Signal Router ---
   function initPeerJS() {
     updateStatus('connecting', 'جاري الاتصال بالسيرفر...');
 
     const persistentId = getOrCreatePersistentPeerId();
-
     peer = new Peer(persistentId, { debug: 1 });
 
     peer.on('open', (id) => {
@@ -795,7 +979,6 @@
 
       renderRecentPeersUI();
 
-      // Auto-connect from URL param or saved friend
       const urlParams = new URLSearchParams(window.location.search);
       const roomParam = urlParams.get('room');
       const lastFriend = localStorage.getItem('last_connected_peer_id');
@@ -804,7 +987,6 @@
         document.getElementById('peer-id-input').value = roomParam;
         connectToPeer(roomParam);
       } else if (lastFriend && lastFriend !== id) {
-        // Automatically start auto-reconnect to last connected friend
         startAutoReconnectProcess(lastFriend);
       }
     });
@@ -822,7 +1004,6 @@
     peer.on('error', (err) => {
       console.error('PeerJS Error:', err);
       if (err.type === 'unavailable-id') {
-        // ID in use elsewhere, handle gracefully
         showToast('⚠️ هذا المعرف مستخدم في علامة تبويب أخرى');
       } else {
         showToast('❌ خطأ في الاتصال: ' + (err.type || err.message));
@@ -857,7 +1038,6 @@
         if (autoReconnectTimer) clearInterval(autoReconnectTimer);
       }
 
-      // Send initial state to newly connected peer
       let currentTime = 0;
       let isPlaying = false;
       let rate = 1;
@@ -891,8 +1071,6 @@
       activeConnections.delete(conn.peer);
       updatePeerCountUI();
       showToast(`انقطع الاتصال مع: ${conn.peer} ❌`);
-
-      // Trigger automatic reconnection to dropped peer
       startAutoReconnectProcess(conn.peer);
     });
 
@@ -909,11 +1087,33 @@
     });
   }
 
-  // --- 9. Universal Remote Signal Execution ---
+  // --- 11. Universal Signal Router ---
   function handleRemoteSignal(data, senderConn) {
     isRemoteAction = true;
 
     switch (data.type) {
+      case 'REMOTE_POINTER':
+        renderRemotePointer(senderConn.peer, data.xPct, data.yPct, data.isClick);
+        break;
+
+      case 'IFRAME_RELOAD':
+        if (activeEngine === 'iframe') iframePlayer.src = iframePlayer.src;
+        else if (activeEngine === 'html5') html5Video.load();
+        showToast('🔄 تم إرسال أمر إعادة تحميل الصفحة بواسطة الطرف الآخر');
+        break;
+
+      case 'IFRAME_SCROLL':
+        showToast(`📜 تم التمرير (${data.direction === 'top' ? 'للأعلى' : 'للأسفل'}) بواسطة الطرف الآخر`);
+        break;
+
+      case 'IFRAME_POSTMESSAGE':
+        if (iframePlayer.contentWindow) {
+          try {
+            iframePlayer.contentWindow.postMessage(JSON.stringify(data.payload), '*');
+          } catch(e) {}
+        }
+        break;
+
       case 'CHANGE_SOURCE':
         setEngine(data.engineType, data.src);
         showToast('🌐 تم تغيير مصدر الفيديو/الموقع بواسطة الطرف الآخر');
@@ -1033,7 +1233,7 @@
     }
   }
 
-  // --- 10. User Action Triggers ---
+  // --- 12. User Action Triggers ---
   function userLoadAndSyncVideo() {
     const input = document.getElementById('video-url-input').value.trim();
     if (!input) return showToast('⚠️ يرجى إدخال رابط فيديو أو موقع');
@@ -1074,7 +1274,7 @@
     showToast('🔄 تم إرسال أمر المزامنة اللحظية للجميع');
   }
 
-  // --- 11. Helper Functions ---
+  // --- 13. Helper Functions ---
   function extractYouTubeId(url) {
     if (/^[a-zA-Z0-9_-]{11}$/.test(url)) return url;
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
