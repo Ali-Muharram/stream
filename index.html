@@ -527,19 +527,204 @@
       transform: scale(1.02);
     }
 
-    .chat-media-video {
-      width: 100%;
-      max-height: 220px;
+    /* PDF Document Card */
+    .wa-pdf-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-bottom: 6px;
+    }
+    .wa-pdf-card:hover {
+      background: rgba(0, 0, 0, 0.5);
+      border-color: var(--wa-accent);
+    }
+    .wa-pdf-icon {
+      font-size: 1.8rem;
+      background: rgba(239, 68, 68, 0.2);
+      padding: 6px;
       border-radius: 8px;
-      display: block;
+      flex-shrink: 0;
+    }
+    .wa-pdf-info {
+      flex: 1;
+      overflow: hidden;
+    }
+    .wa-pdf-name {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: #f8fafc;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .wa-pdf-sub {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    .wa-pdf-download {
+      font-size: 1.2rem;
+      color: var(--wa-accent);
+      padding: 4px;
+      border-radius: 6px;
+      text-decoration: none;
+      transition: transform 0.2s ease;
+      flex-shrink: 0;
+    }
+    .wa-pdf-download:hover {
+      transform: scale(1.15);
     }
 
-    .wa-voice-note {
+    /* Custom Audio Player */
+    .custom-audio-player {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      min-width: 230px;
+      margin-bottom: 4px;
+    }
+    .audio-play-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: var(--wa-accent);
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(0, 168, 132, 0.4);
+      transition: transform 0.15s ease;
+    }
+    .audio-play-btn:hover {
+      transform: scale(1.08);
+    }
+    .audio-track-wrapper {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .audio-progress-bar {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 3px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+    .audio-progress-fill {
+      height: 100%;
+      background: var(--wa-accent);
+      width: 0%;
+      border-radius: 3px;
+      transition: width 0.1s linear;
+    }
+    .audio-time-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.68rem;
+      color: var(--text-muted);
+    }
+
+    /* Custom Video Player */
+    .custom-video-player {
+      position: relative;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #000;
+      max-height: 240px;
+      margin-bottom: 4px;
+    }
+    .custom-video-element {
+      width: 100%;
+      max-height: 240px;
+      object-fit: contain;
+      display: block;
+      cursor: pointer;
+    }
+    .video-overlay-play {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: rgba(0, 168, 132, 0.85);
+      color: #fff;
+      border: none;
+      font-size: 1.4rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+      transition: all 0.2s ease;
+      z-index: 2;
+    }
+    .video-overlay-play:hover {
+      transform: translate(-50%, -50%) scale(1.1);
+      background: var(--wa-accent);
+    }
+    .custom-video-controls {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(transparent, rgba(0,0,0,0.85));
+      padding: 6px 10px;
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 4px 0;
-      width: 100%;
+      z-index: 3;
+    }
+    .v-btn {
+      background: transparent;
+      border: none;
+      color: #fff;
+      font-size: 0.9rem;
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 4px;
+      transition: color 0.15s ease;
+    }
+    .v-btn:hover {
+      color: var(--wa-accent);
+    }
+    .v-progress-bar {
+      flex: 1;
+      height: 5px;
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 3px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+    .v-progress-fill {
+      height: 100%;
+      background: var(--wa-accent);
+      width: 0%;
+      border-radius: 3px;
+    }
+    .v-time {
+      font-size: 0.7rem;
+      color: #e2e8f0;
+      white-space: nowrap;
     }
 
     .chat-input-bar {
@@ -739,9 +924,9 @@
       <!-- WhatsApp Style Input Actions Bar -->
       <div class="chat-input-bar">
         <!-- Hidden File Input -->
-        <input type="file" id="chat-file-input" accept="image/*,video/*,audio/*" style="display:none;" onchange="handleFileAttachment(this)">
+        <input type="file" id="chat-file-input" accept="image/*,video/*,audio/*,application/pdf,.pdf" style="display:none;" onchange="handleFileAttachment(this)">
         
-        <button class="btn btn-secondary btn-icon" style="background:transparent; border:none; font-size:1.2rem;" onclick="document.getElementById('chat-file-input').click()" title="إرفاق صورة أو فيديو أو صوت">📎</button>
+        <button class="btn btn-secondary btn-icon" style="background:transparent; border:none; font-size:1.2rem;" onclick="document.getElementById('chat-file-input').click()" title="إرفاق صورة، فيديو، صوت أو مستند PDF">📎</button>
         <button class="btn btn-secondary btn-icon" id="record-voice-btn" style="background:transparent; border:none; font-size:1.2rem;" onclick="toggleVoiceRecording()" title="تسجيل صوتي (ميكروفون)">🎤</button>
 
         <input type="text" id="chat-text-input" placeholder="اكتب رسالة..." style="border-radius:20px; background:rgba(42, 57, 66, 0.8); font-size:0.9rem;" onkeypress="if(event.key==='Enter') sendTextMessage()">
