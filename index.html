@@ -146,7 +146,7 @@
       border: none;
     }
 
-    /* Interactive Pointer Layer for iFrame Co-Browsing */
+    /* Interactive Pointer & Click Event Layer */
     #pointer-overlay {
       position: absolute;
       top: 0;
@@ -195,7 +195,7 @@
       width: 44px;
       height: 44px;
       border: 2px solid var(--accent);
-      background: rgba(236, 72, 153, 0.2);
+      background: rgba(236, 72, 153, 0.3);
       border-radius: 50%;
       pointer-events: none;
       transform: translate(-50%, -50%) scale(0.2);
@@ -494,7 +494,7 @@
         <button class="btn btn-secondary btn-sm" onclick="userScrollIframe('down')">⬇️ أسفل الصفحة</button>
         
         <div style="display:inline-flex; align-items:center; gap:6px; margin-right:auto;">
-          <label style="font-size:0.8rem; color:var(--text-muted);">مؤشر الماوس والسكرول:</label>
+          <label style="font-size:0.8rem; color:var(--text-muted);">مزامنة الضغطات بالماوس:</label>
           <input type="checkbox" id="toggle-laser-pointer" checked onchange="toggleLaserPointerState()">
         </div>
       </div>
@@ -641,10 +641,10 @@
     }, 3000);
   }
 
-  // --- 4. iFrame Wheel Scroll & Click Sync Engine (مزامنة السكرول والنقر داخل الـ iFrame) ---
+  // --- 4. Synthetic Mouse Event Injector & iFrame Click Sync Engine ---
   function toggleLaserPointerState() {
     enableLaserPointer = document.getElementById('toggle-laser-pointer').checked;
-    showToast(`مؤشر الماوس والسكرول: ${enableLaserPointer ? 'مفعل ✅' : 'معطل ❌'}`);
+    showToast(`مزامنة الضغطات بالماوس: ${enableLaserPointer ? 'مفعلة ✅' : 'معطلة ❌'}`);
   }
 
   // Capture Mouse Scroll (Wheel) Over iFrame Area
@@ -679,12 +679,45 @@
     const yPct = ((e.clientY - rect.top) / rect.height) * 100;
 
     broadcastSignal({
-      type: 'REMOTE_POINTER',
+      type: 'EXECUTE_REMOTE_CLICK',
       xPct: xPct,
-      yPct: yPct,
-      isClick: true
+      yPct: yPct
     });
   });
+
+  function executeRemoteClickAt(senderId, xPct, yPct) {
+    const rect = mainPlayerBox.getBoundingClientRect();
+    const targetX = rect.left + (xPct / 100) * rect.width;
+    const targetY = rect.top + (yPct / 100) * rect.height;
+
+    // 1. Render Visual Remote Laser Click Ripple
+    renderRemotePointer(senderId, xPct, yPct, true);
+
+    // 2. Dispatch Synthetic Mouse & Click Events to Target Element at Coordinates
+    try {
+      pointerOverlay.style.pointerEvents = 'none';
+      const targetEl = document.elementFromPoint(targetX, targetY);
+
+      if (targetEl && targetEl !== mainPlayerBox && targetEl !== pointerOverlay) {
+        ['mousedown', 'mouseup', 'click'].forEach(evtName => {
+          const evt = new MouseEvent(evtName, {
+            bubbles: true,
+            cancelable: true,
+            clientX: targetX,
+            clientY: targetY,
+            view: window
+          });
+          targetEl.dispatchEvent(evt);
+        });
+
+        if (typeof targetEl.click === 'function') {
+          targetEl.click();
+        }
+      }
+    } catch(err) {
+      console.warn('Click Dispatch:', err);
+    }
+  }
 
   function renderRemotePointer(senderId, xPct, yPct, isClick) {
     let cursor = document.getElementById(`cursor-${senderId}`);
@@ -1117,6 +1150,10 @@
     isRemoteAction = true;
 
     switch (data.type) {
+      case 'EXECUTE_REMOTE_CLICK':
+        executeRemoteClickAt(senderConn.peer, data.xPct, data.yPct);
+        break;
+
       case 'REMOTE_POINTER':
         renderRemotePointer(senderConn.peer, data.xPct, data.yPct, data.isClick);
         break;
