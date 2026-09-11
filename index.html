@@ -1478,10 +1478,6 @@
           <div class="wa-upload-bar" id="progress-bar-${msgData.id}" style="width: 0%"></div>
           <span class="wa-upload-text" id="progress-text-${msgData.id}">⏳ جاري رفع الملف: 0%</span>
         </div>
-        <div class="wa-upload-progress" id="receiver-progress-box-${msgData.id}" style="display:none; margin-top:4px;">
-          <div class="wa-upload-bar" id="receiver-progress-bar-${msgData.id}" style="width: 0%; background: linear-gradient(90deg, #38bdf8, #818cf8);"></div>
-          <span class="wa-upload-text" id="receiver-progress-text-${msgData.id}">📥 استلم الطرف الآخر: 0%</span>
-        </div>
       `;
     }
 
@@ -2321,16 +2317,6 @@
             buf.receivedChunks[data.chunkIndex] = data.chunkData;
             buf.receivedCount++;
 
-            const receiverPct = Math.round((buf.receivedCount / buf.totalChunks) * 100);
-
-            if (senderConn && senderConn.open) {
-              senderConn.send({
-                type: 'MSG_PROGRESS_ACK',
-                id: data.id,
-                pct: receiverPct
-              });
-            }
-
             if (buf.receivedCount >= buf.totalChunks) {
               const fullContent = buf.receivedChunks.join('');
               const fullMsgData = {
@@ -2352,10 +2338,6 @@
             }
           }
         }
-        break;
-
-      case 'MSG_PROGRESS_ACK':
-        updateReceiverProgressUI(data.id, data.pct);
         break;
 
       case 'MSG_ACK':
