@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Universal Video & iFrame Co-Sync Cinema - مشاهدة وشات متكامل</title>
+  <title>Universal Video & iFrame Co-Sync Cinema - مشاهدة وشات واتساب متكامل</title>
   
   <!-- خط Google Fonts Tajawal -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -27,6 +27,14 @@
       --danger: #ef4444;
       --warning: #f59e0b;
       --radius: 20px;
+
+      /* WhatsApp Theme Tokens */
+      --wa-bg: #0b141a;
+      --wa-incoming: #202c33;
+      --wa-outgoing: #005c4b;
+      --wa-text: #e9edef;
+      --wa-time: #8696a0;
+      --wa-accent: #00a884;
     }
 
     * {
@@ -112,7 +120,7 @@
       font-weight: bold;
     }
 
-    /* Cinema Layout with Integrated Chat Drawer */
+    /* Cinema Layout with Integrated WhatsApp Chat Drawer */
     .main-grid {
       display: grid;
       grid-template-columns: 1fr;
@@ -122,7 +130,7 @@
 
     @media (min-width: 1100px) {
       .main-grid {
-        grid-template-columns: 1fr 340px;
+        grid-template-columns: 1fr 360px;
       }
     }
 
@@ -134,7 +142,7 @@
     .player-container {
       position: relative;
       width: 100%;
-      padding-bottom: 52%; /* Large Cinema ratio */
+      padding-bottom: 52%;
       height: 0;
       overflow: hidden;
       border-radius: var(--radius);
@@ -353,13 +361,16 @@
       flex-wrap: wrap;
     }
 
-    /* Integrated Chat Panel Styles */
+    /* --- Professional WhatsApp Style Chat & Custom Scrollbar --- */
     .chat-card {
       display: flex;
       flex-direction: column;
       height: 100%;
-      min-height: 480px;
-      max-height: 600px;
+      min-height: 520px;
+      max-height: 640px;
+      background: rgba(11, 20, 26, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      position: relative;
     }
 
     .chat-messages-container {
@@ -368,63 +379,120 @@
       display: flex;
       flex-direction: column;
       gap: 10px;
-      padding: 8px 4px;
-      margin-bottom: 10px;
+      padding: 14px 12px;
+      margin-bottom: 8px;
+      background-color: var(--wa-bg);
+      background-image: radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+      background-size: 18px 18px;
+      border-radius: 16px;
+      scroll-behavior: smooth;
     }
 
-    .chat-messages-container::-webkit-scrollbar {
+    /* Professional Glass Scrollbar for Chat & Containers */
+    .chat-messages-container::-webkit-scrollbar,
+    .custom-scroll::-webkit-scrollbar {
       width: 6px;
     }
-    .chat-messages-container::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.15);
-      border-radius: 4px;
+    .chat-messages-container::-webkit-scrollbar-track,
+    .custom-scroll::-webkit-scrollbar-track {
+      background: rgba(11, 20, 26, 0.5);
+      border-radius: 10px;
+    }
+    .chat-messages-container::-webkit-scrollbar-thumb,
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: rgba(134, 150, 160, 0.3);
+      border-radius: 10px;
+      transition: background 0.2s ease;
+    }
+    .chat-messages-container::-webkit-scrollbar-thumb:hover,
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 168, 132, 0.7);
     }
 
+    /* WhatsApp Chat Bubbles */
     .chat-bubble {
       max-width: 85%;
-      padding: 10px 14px;
-      border-radius: 14px;
-      font-size: 0.9rem;
+      padding: 8px 12px 6px 12px;
+      border-radius: 12px;
+      font-size: 0.92rem;
+      line-height: 1.4;
+      position: relative;
       word-break: break-word;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+      animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
     }
 
     .chat-bubble-me {
       align-self: flex-start;
-      background: linear-gradient(135deg, #4f46e5, #7c3aed);
-      color: #fff;
-      border-bottom-right-radius: 4px;
+      background: var(--wa-outgoing);
+      color: var(--wa-text);
+      border-top-right-radius: 0px;
     }
 
     .chat-bubble-peer {
       align-self: flex-end;
-      background: rgba(30, 41, 59, 0.9);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      color: #f1f5f9;
-      border-bottom-left-radius: 4px;
+      background: var(--wa-incoming);
+      color: var(--wa-text);
+      border-top-left-radius: 0px;
     }
 
-    .chat-meta {
-      font-size: 0.7rem;
-      opacity: 0.75;
+    .chat-sender-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #38bdf8;
+      margin-bottom: 4px;
+    }
+
+    .chat-meta-bar {
+      font-size: 0.68rem;
+      color: var(--wa-time);
       display: flex;
-      justify-content: space-between;
-      gap: 8px;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 4px;
+      margin-top: 4px;
+    }
+
+    /* WhatsApp Media Cards */
+    .wa-media-card {
+      border-radius: 10px;
+      overflow: hidden;
+      position: relative;
+      margin-bottom: 4px;
+      background: rgba(0,0,0,0.3);
     }
 
     .chat-media-img {
-      max-width: 100%;
-      max-height: 200px;
-      border-radius: 10px;
-      cursor: pointer;
+      width: 100%;
+      max-height: 220px;
       object-fit: cover;
+      display: block;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+
+    .chat-media-img:hover {
+      transform: scale(1.02);
     }
 
     .chat-media-video {
-      max-width: 100%;
-      border-radius: 10px;
+      width: 100%;
+      max-height: 220px;
+      border-radius: 8px;
+      display: block;
+    }
+
+    .wa-voice-note {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 0;
+      width: 100%;
     }
 
     .chat-input-bar {
@@ -432,10 +500,13 @@
       align-items: center;
       gap: 6px;
       padding-top: 10px;
-      border-top: 1px solid var(--card-border);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(30, 42, 51, 0.5);
+      border-radius: 14px;
+      padding: 6px;
     }
 
-    /* Modal for Image Preview & Settings */
+    /* Modals */
     .modal-overlay {
       position: fixed;
       top: 0;
@@ -587,7 +658,7 @@
     </div>
   </div>
 
-  <!-- Main Grid: Cinema Player + Integrated Chat Drawer -->
+  <!-- Main Grid: Cinema Player + WhatsApp Style Integrated Chat -->
   <div class="main-grid">
     <!-- Left Column: Video Cinema Player -->
     <div class="cinema-wrapper">
@@ -601,30 +672,33 @@
       </div>
     </div>
 
-    <!-- Right Column: Integrated Chat & Media Drawer -->
+    <!-- Right Column: WhatsApp Style Integrated Chat Drawer -->
     <div class="card chat-card">
-      <div class="card-title">
-        <span>💬 الشات المباشر للمشاهدة</span>
-        <span id="chat-status" style="font-size: 0.75rem; color: var(--accent);">جاهز للرسائل</span>
+      <div class="card-title" style="border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 8px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:1.2rem; color:var(--wa-accent);">💬</span>
+          <span>شات واتساب المباشر</span>
+        </div>
+        <span id="chat-status" style="font-size: 0.75rem; color: var(--wa-accent);">نشط 🟢</span>
       </div>
 
-      <!-- Messages Stream -->
+      <!-- Messages Stream (WhatsApp Style & Custom Overflow Scroll) -->
       <div class="chat-messages-container" id="chat-messages">
-        <div class="chat-bubble chat-bubble-peer" style="align-self: center; text-align: center; background: rgba(255,255,255,0.05);">
-          👋 مرحباً بك في الشات المباشر! يمكنك إرسال النصوص، الصور، الفيديوهات والتسجيلات الصوتية.
+        <div class="chat-bubble chat-bubble-peer" style="align-self: center; text-align: center; background: rgba(32, 44, 51, 0.8); border: 1px dashed rgba(0, 168, 132, 0.4);">
+          👋 مرحباً بك في شات المشاهدة المباشر! يمكنك مشاركة النصوص، الصور، الفيديوهات والتسجيلات الصوتية بتصميم واتساب الجذاب.
         </div>
       </div>
 
-      <!-- Input Actions Bar -->
+      <!-- WhatsApp Style Input Actions Bar -->
       <div class="chat-input-bar">
-        <!-- Hidden File Input for Image/Video/Audio attachments -->
+        <!-- Hidden File Input -->
         <input type="file" id="chat-file-input" accept="image/*,video/*,audio/*" style="display:none;" onchange="handleFileAttachment(this)">
         
-        <button class="btn btn-secondary btn-icon" onclick="document.getElementById('chat-file-input').click()" title="إرفاق صورة أو فيديو أو صوت">📁</button>
-        <button class="btn btn-secondary btn-icon" id="record-voice-btn" onclick="toggleVoiceRecording()" title="تسجيل صوتي (ميكروفون)">🎤</button>
+        <button class="btn btn-secondary btn-icon" style="background:transparent; border:none; font-size:1.2rem;" onclick="document.getElementById('chat-file-input').click()" title="إرفاق صورة أو فيديو أو صوت">📎</button>
+        <button class="btn btn-secondary btn-icon" id="record-voice-btn" style="background:transparent; border:none; font-size:1.2rem;" onclick="toggleVoiceRecording()" title="تسجيل صوتي (ميكروفون)">🎤</button>
 
-        <input type="text" id="chat-text-input" placeholder="اكتب رسالتك..." onkeypress="if(event.key==='Enter') sendTextMessage()">
-        <button class="btn btn-primary btn-icon" onclick="sendTextMessage()" title="إرسال">🚀</button>
+        <input type="text" id="chat-text-input" placeholder="اكتب رسالة..." style="border-radius:20px; background:rgba(42, 57, 66, 0.8); font-size:0.9rem;" onkeypress="if(event.key==='Enter') sendTextMessage()">
+        <button class="btn btn-primary btn-icon" style="border-radius:50%; width:38px; height:38px; background:var(--wa-accent);" onclick="sendTextMessage()" title="إرسال">🚀</button>
       </div>
     </div>
   </div>
@@ -739,7 +813,7 @@
   };
 
   // Current Media Source State
-  let activeEngine = 'youtube'; // 'youtube' | 'html5' | 'iframe'
+  let activeEngine = 'youtube';
   let currentSourceUrl = 'dQw4w9WgXcQ';
   let isAdPlaying = false;
   let enableLaserPointer = true;
@@ -766,7 +840,7 @@
   const mainPlayerBox = document.getElementById('main-player-box');
   const pointerOverlay = document.getElementById('pointer-overlay');
 
-  // --- 1. Settings & Audio Synthesizer (تنبيه الصوت والإشعارات) ---
+  // --- 1. Settings & Audio Synthesizer ---
   function loadUserSettings() {
     const saved = localStorage.getItem('cinema_user_settings');
     if (saved) {
@@ -801,8 +875,8 @@
       const gain = ctx.createGain();
 
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5 note
-      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15); // A5 note
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15);
 
       gain.gain.setValueAtTime(0.25, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
@@ -820,7 +894,7 @@
     showToast('🎵 نغمة التنبيه الصوتية تعمل بشكل رائع!');
   }
 
-  // --- 2. Integrated Chat Engine (إرسال النص والصور والفيديو والصوت) ---
+  // --- 2. WhatsApp Style Chat Engine with Upload Progress Percentage ---
   function sendTextMessage() {
     const input = document.getElementById('chat-text-input');
     const text = input.value.trim();
@@ -843,13 +917,21 @@
     const file = fileInput.files[0];
     if (!file) return;
 
-    if (file.size > 15 * 1024 * 1024) {
-      return showToast('⚠️ يرجى اختيار ملف بحجم أقل من 15 ميجابايت');
+    if (file.size > 25 * 1024 * 1024) {
+      return showToast('⚠️ يرجى اختيار ملف بحجم أقل من 25 ميجابايت');
     }
 
-    showToast('⏳ جاري رفع ومعالجة الملف...');
+    const toastEl = createProgressToast(`⏳ جاري المعالجة: 0%`);
 
     const reader = new FileReader();
+
+    reader.onprogress = (e) => {
+      if (e.lengthComputable) {
+        const pct = Math.round((e.loaded / e.total) * 100);
+        toastEl.innerText = `⏳ جاري رفع الملف: ${pct}%`;
+      }
+    };
+
     reader.onload = (e) => {
       let msgType = 'image';
       if (file.type.startsWith('video/')) msgType = 'video';
@@ -859,6 +941,7 @@
         type: 'CHAT_MSG',
         msgType: msgType,
         content: e.target.result,
+        fileName: file.name,
         sender: getOrCreatePersistentPeerId(),
         time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
       };
@@ -866,9 +949,21 @@
       appendChatMessage(msgData, true);
       broadcastSignal(msgData);
       fileInput.value = '';
-      showToast('✅ تم إرسال الملف بنجاح');
+      toastEl.innerText = `✅ اكتمل الرفع بنجاح 100%`;
+      setTimeout(() => toastEl.remove(), 2500);
     };
+
     reader.readAsDataURL(file);
+  }
+
+  function createProgressToast(text) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.style.borderColor = 'rgba(0, 168, 132, 0.6)';
+    toast.innerText = text;
+    container.appendChild(toast);
+    return toast;
   }
 
   async function toggleVoiceRecording() {
@@ -897,15 +992,13 @@
             broadcastSignal(msgData);
           };
           reader.readAsDataURL(audioBlob);
-          // Stop stream tracks
           stream.getTracks().forEach(track => track.stop());
         };
 
         mediaRecorder.start();
         isVoiceRecording = true;
-        btn.style.background = 'rgba(239, 68, 68, 0.4)';
-        btn.innerText = '🔴';
-        showToast('🎙️ جاري تسجيل الصوت... اضغط مرة أخرى للإرسال');
+        btn.style.color = '#ef4444';
+        showToast('🎙️ جاري تسجيل الصوت... اضغط الميكروفون مجدداً للإرسال');
       } catch(err) {
         showToast('❌ تعذر الوصول للميكروفون لتسجيل الصوت');
       }
@@ -914,8 +1007,7 @@
         mediaRecorder.stop();
       }
       isVoiceRecording = false;
-      btn.style.background = 'rgba(255, 255, 255, 0.08)';
-      btn.innerText = '🎤';
+      btn.style.color = 'inherit';
       showToast('✅ تم إرسال التسجيل الصوتي');
     }
   }
@@ -925,22 +1017,40 @@
     const bubble = document.createElement('div');
     bubble.className = `chat-bubble ${isMe ? 'chat-bubble-me' : 'chat-bubble-peer'}`;
 
+    let senderHtml = `<div class="chat-sender-title">${isMe ? 'أنت' : msgData.sender}</div>`;
     let bodyHtml = '';
+
     if (msgData.msgType === 'text') {
       bodyHtml = `<div>${escapeHtml(msgData.content)}</div>`;
     } else if (msgData.msgType === 'image') {
-      bodyHtml = `<img src="${msgData.content}" class="chat-media-img" onclick="openImageModal('${msgData.content}')">`;
+      bodyHtml = `
+        <div class="wa-media-card">
+          <img src="${msgData.content}" class="chat-media-img" onclick="openImageModal('${msgData.content}')">
+        </div>
+      `;
     } else if (msgData.msgType === 'video') {
-      bodyHtml = `<video src="${msgData.content}" controls class="chat-media-video"></video>`;
+      bodyHtml = `
+        <div class="wa-media-card">
+          <video src="${msgData.content}" controls class="chat-media-video"></video>
+        </div>
+      `;
     } else if (msgData.msgType === 'audio') {
-      bodyHtml = `<audio src="${msgData.content}" controls style="max-width:100%;"></audio>`;
+      bodyHtml = `
+        <div class="wa-voice-note">
+          <span style="font-size:1.2rem;">🎙️</span>
+          <audio src="${msgData.content}" controls style="max-width:100%; height:32px;"></audio>
+        </div>
+      `;
     }
 
+    const checkmarks = isMe ? `<span class="chat-check">✓✓</span>` : '';
+
     bubble.innerHTML = `
+      ${senderHtml}
       ${bodyHtml}
-      <div class="chat-meta">
-        <span>${isMe ? 'أنت' : msgData.sender}</span>
+      <div class="chat-meta-bar">
         <span>${msgData.time || ''}</span>
+        ${checkmarks}
       </div>
     `;
 
