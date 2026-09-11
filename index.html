@@ -1165,18 +1165,102 @@
     input.value = '';
   }
 
-  function handleFileAttachment(fileInput) {
+  // --- Image Canvas Compressor (High Quality 0.88) ---
+  function compressImageIfNeeded(file, maxDimension = 1920, quality = 0.88) {
+    return new Promise((resolve) => {
+      if (!file.type.startsWith('image/') || file.type === 'image/gif' || file.type === 'image/svg+xml') {
+        resolve(null);
+        return;
+      }
+
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const mimeType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+        const compressedDataUrl = canvas.toDataURL(mimeType, quality);
+        resolve(compressedDataUrl);
+      };
+      img.onerror = () => resolve(null);
+      img.src = url;
+    });
+  }
+
+  // --- Chunked WebRTC Transfer Engine for Receiver Progress Feedback ---
+  const CHUNK_SIZE = 32 * 1024; // 32KB per chunk
+  const pendingChunkBuffers = new Map();
+
+  function sendChunkedMedia(msgData) {
+    const contentStr = msgData.content || '';
+    const totalChunks = Math.ceil(contentStr.length / CHUNK_SIZE) || 1;
+    const msgId = msgData.id;
+
+    broadcastSignal({
+      type: 'CHAT_MSG_START',
+      id: msgId,
+      msgType: msgData.msgType,
+      fileName: msgData.fileName,
+      totalChunks: totalChunks,
+      time: msgData.time,
+      sender: msgData.sender
+    });
+
+    let currentChunk = 0;
+    function sendNextChunk() {
+      if (currentChunk >= totalChunks) return;
+
+      const start = currentChunk * CHUNK_SIZE;
+      const end = Math.min(start + CHUNK_SIZE, contentStr.length);
+      const chunkSlice = contentStr.substring(start, end);
+
+      broadcastSignal({
+        type: 'CHAT_MSG_CHUNK',
+        id: msgId,
+        chunkIndex: currentChunk,
+        chunkData: chunkSlice
+      });
+
+      currentChunk++;
+      if (currentChunk < totalChunks) {
+        setTimeout(sendNextChunk, 6);
+      }
+    }
+
+    sendNextChunk();
+  }
+
+  async function handleFileAttachment(fileInput) {
     const file = fileInput.files[0];
     if (!file) return;
 
-    if (file.size > 25 * 1024 * 1024) {
-      return showToast('⚠️ يرجى اختيار ملف بحجم أقل من 25 ميجابايت');
+    if (file.size > 35 * 1024 * 1024) {
+      return showToast('⚠️ يرجى اختيار ملف بحجم أقل من 35 ميجابايت');
     }
 
     const msgId = 'msg-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6);
     let msgType = 'image';
     if (file.type.startsWith('video/')) msgType = 'video';
     else if (file.type.startsWith('audio/')) msgType = 'audio';
+    else if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) msgType = 'pdf';
 
     const tempUrl = URL.createObjectURL(file);
 
@@ -1191,8 +1275,30 @@
       isUploading: true
     };
 
-    // Render bubble immediately with inline progress bar under the element
     appendChatMessage(pendingMsgData, true);
+
+    if (file.type.startsWith('image/')) {
+      const compressedDataUrl = await compressImageIfNeeded(file);
+      if (compressedDataUrl) {
+        finishInlineUpload(msgId);
+
+        const finalMsgData = {
+          id: msgId,
+          type: 'CHAT_MSG',
+          msgType: 'image',
+          content: compressedDataUrl,
+          fileName: file.name,
+          sender: pendingMsgData.sender,
+          time: pendingMsgData.time,
+          isUploading: false
+        };
+
+        appendChatMessage(finalMsgData, true);
+        sendChunkedMedia(finalMsgData);
+        fileInput.value = '';
+        return;
+      }
+    }
 
     const reader = new FileReader();
 
@@ -1212,12 +1318,13 @@
         msgType: msgType,
         content: e.target.result,
         fileName: file.name,
-        sender: getOrCreatePersistentPeerId(),
+        sender: pendingMsgData.sender,
         time: pendingMsgData.time,
         isUploading: false
       };
 
-      broadcastSignal(finalMsgData);
+      appendChatMessage(finalMsgData, true);
+      sendChunkedMedia(finalMsgData);
       fileInput.value = '';
     };
 
@@ -1229,6 +1336,17 @@
     const text = document.getElementById(`progress-text-${msgId}`);
     if (bar) bar.style.width = `${pct}%`;
     if (text) text.innerText = `⏳ جاري رفع الملف: ${pct}%`;
+  }
+
+  function updateReceiverProgressUI(msgId, pct) {
+    const box = document.getElementById(`receiver-progress-box-${msgId}`);
+    const bar = document.getElementById(`receiver-progress-bar-${msgId}`);
+    const text = document.getElementById(`receiver-progress-text-${msgId}`);
+    if (box && bar && text) {
+      box.style.display = 'flex';
+      bar.style.width = `${pct}%`;
+      text.innerText = `📥 استلم الطرف الآخر: ${pct}%`;
+    }
   }
 
   function finishInlineUpload(msgId) {
@@ -1261,7 +1379,7 @@
             };
 
             appendChatMessage(msgData, true);
-            broadcastSignal(msgData);
+            sendChunkedMedia(msgData);
           };
           reader.readAsDataURL(audioBlob);
           stream.getTracks().forEach(track => track.stop());
@@ -1287,7 +1405,6 @@
   function appendChatMessage(msgData, isMe) {
     const container = document.getElementById('chat-messages');
     
-    // Check if bubble already exists (updating uploaded preview)
     let bubble = document.getElementById(`bubble-${msgData.id}`);
     const isNew = !bubble;
 
@@ -1310,26 +1427,60 @@
       `;
     } else if (msgData.msgType === 'video') {
       bodyHtml = `
-        <div class="wa-media-card">
-          <video src="${msgData.content}" controls class="chat-media-video"></video>
+        <div class="custom-video-player" id="video-box-${msgData.id}">
+          <video id="video-elem-${msgData.id}" src="${msgData.content}" class="custom-video-element" onclick="toggleCustomVideo('${msgData.id}')" ontimeupdate="updateCustomVideoTime('${msgData.id}')" onloadedmetadata="initCustomVideoMeta('${msgData.id}')" onended="resetCustomVideo('${msgData.id}')"></video>
+          <button class="video-overlay-play" id="video-play-btn-${msgData.id}" onclick="toggleCustomVideo('${msgData.id}')">▶</button>
+          <div class="custom-video-controls">
+            <button class="v-btn" onclick="toggleCustomVideo('${msgData.id}')" id="v-btn-${msgData.id}">▶</button>
+            <div class="v-progress-bar" onclick="seekCustomVideo(event, '${msgData.id}')">
+              <div class="v-progress-fill" id="v-fill-${msgData.id}"></div>
+            </div>
+            <span class="v-time" id="v-time-${msgData.id}">00:00 / --:--</span>
+            <button class="v-btn" onclick="toggleMuteCustomVideo('${msgData.id}')" id="v-mute-${msgData.id}">🔊</button>
+            <button class="v-btn" onclick="fullscreenCustomVideo('${msgData.id}')">⛶</button>
+          </div>
         </div>
       `;
     } else if (msgData.msgType === 'audio') {
       bodyHtml = `
-        <div class="wa-voice-note">
-          <span style="font-size:1.2rem;">🎙️</span>
-          <audio src="${msgData.content}" controls style="max-width:100%; height:32px;"></audio>
+        <div class="custom-audio-player" id="audio-player-${msgData.id}">
+          <button class="audio-play-btn" onclick="toggleCustomAudio('${msgData.id}')" id="audio-btn-${msgData.id}">▶</button>
+          <div class="audio-track-wrapper">
+            <div class="audio-progress-bar" onclick="seekCustomAudio(event, '${msgData.id}')">
+              <div class="audio-progress-fill" id="audio-fill-${msgData.id}"></div>
+            </div>
+            <div class="audio-time-row">
+              <span id="audio-curr-${msgData.id}">00:00</span>
+              <span id="audio-dur-${msgData.id}">--:--</span>
+            </div>
+          </div>
+          <audio id="audio-elem-${msgData.id}" src="${msgData.content}" style="display:none;" ontimeupdate="updateCustomAudioTime('${msgData.id}')" onloadedmetadata="initCustomAudioMeta('${msgData.id}')" onended="resetCustomAudio('${msgData.id}')"></audio>
+        </div>
+      `;
+    } else if (msgData.msgType === 'pdf') {
+      bodyHtml = `
+        <div class="wa-pdf-card" onclick="openPdfModal('${msgData.content}', '${msgData.fileName || 'مستند PDF'}')">
+          <div class="wa-pdf-icon">📄</div>
+          <div class="wa-pdf-info">
+            <div class="wa-pdf-name">${escapeHtml(msgData.fileName || 'مستند PDF')}</div>
+            <div class="wa-pdf-sub">مستند PDF • اضغط للفتح أو التحميل</div>
+          </div>
+          <a href="${msgData.content}" download="${msgData.fileName || 'document.pdf'}" class="wa-pdf-download" onclick="event.stopPropagation()">📥</a>
         </div>
       `;
     }
 
-    // Inline progress bar directly under media item
     let progressHtml = '';
-    if (isMe && msgData.isUploading) {
+    if (isMe) {
+      const upStyle = msgData.isUploading ? '' : 'display:none;';
       progressHtml = `
-        <div class="wa-upload-progress" id="progress-box-${msgData.id}">
+        <div class="wa-upload-progress" id="progress-box-${msgData.id}" style="${upStyle}">
           <div class="wa-upload-bar" id="progress-bar-${msgData.id}" style="width: 0%"></div>
-          <span class="wa-upload-text" id="progress-text-${msgData.id}">⏳ جاري التحميل: 0%</span>
+          <span class="wa-upload-text" id="progress-text-${msgData.id}">⏳ جاري رفع الملف: 0%</span>
+        </div>
+        <div class="wa-upload-progress" id="receiver-progress-box-${msgData.id}" style="display:none; margin-top:4px;">
+          <div class="wa-upload-bar" id="receiver-progress-bar-${msgData.id}" style="width: 0%; background: linear-gradient(90deg, #38bdf8, #818cf8);"></div>
+          <span class="wa-upload-text" id="receiver-progress-text-${msgData.id}">📥 استلم الطرف الآخر: 0%</span>
         </div>
       `;
     }
@@ -1358,6 +1509,182 @@
     }
   }
 
+  // --- Custom Audio Controller ---
+  function toggleCustomAudio(id) {
+    const audio = document.getElementById(`audio-elem-${id}`);
+    const btn = document.getElementById(`audio-btn-${id}`);
+    if (!audio || !btn) return;
+
+    document.querySelectorAll('audio').forEach(a => {
+      if (a !== audio && !a.paused) {
+        a.pause();
+        const otherId = a.id.replace('audio-elem-', '');
+        const otherBtn = document.getElementById(`audio-btn-${otherId}`);
+        if (otherBtn) otherBtn.innerText = '▶';
+      }
+    });
+
+    if (audio.paused) {
+      audio.play();
+      btn.innerText = '⏸';
+    } else {
+      audio.pause();
+      btn.innerText = '▶';
+    }
+  }
+
+  function updateCustomAudioTime(id) {
+    const audio = document.getElementById(`audio-elem-${id}`);
+    const fill = document.getElementById(`audio-fill-${id}`);
+    const curr = document.getElementById(`audio-curr-${id}`);
+    const dur = document.getElementById(`audio-dur-${id}`);
+    if (!audio) return;
+
+    if (audio.duration) {
+      const pct = (audio.currentTime / audio.duration) * 100;
+      if (fill) fill.style.width = `${pct}%`;
+      if (curr) curr.innerText = formatTimeSec(audio.currentTime);
+      if (dur && audio.duration) dur.innerText = formatTimeSec(audio.duration);
+    }
+  }
+
+  function initCustomAudioMeta(id) {
+    const audio = document.getElementById(`audio-elem-${id}`);
+    const dur = document.getElementById(`audio-dur-${id}`);
+    if (audio && dur && audio.duration) {
+      dur.innerText = formatTimeSec(audio.duration);
+    }
+  }
+
+  function seekCustomAudio(e, id) {
+    const audio = document.getElementById(`audio-elem-${id}`);
+    const bar = e.currentTarget;
+    if (!audio || !bar) return;
+    const rect = bar.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const pct = clickX / rect.width;
+    if (audio.duration) {
+      audio.currentTime = pct * audio.duration;
+    }
+  }
+
+  function resetCustomAudio(id) {
+    const btn = document.getElementById(`audio-btn-${id}`);
+    const fill = document.getElementById(`audio-fill-${id}`);
+    const curr = document.getElementById(`audio-curr-${id}`);
+    if (btn) btn.innerText = '▶';
+    if (fill) fill.style.width = '0%';
+    if (curr) curr.innerText = '00:00';
+  }
+
+  // --- Custom Video Controller ---
+  function toggleCustomVideo(id) {
+    const video = document.getElementById(`video-elem-${id}`);
+    const btn = document.getElementById(`v-btn-${id}`);
+    const overlayBtn = document.getElementById(`video-play-btn-${id}`);
+    if (!video) return;
+
+    document.querySelectorAll('video').forEach(v => {
+      if (v !== video && !v.paused && v.id.startsWith('video-elem-')) {
+        v.pause();
+        const oId = v.id.replace('video-elem-', '');
+        const oBtn = document.getElementById(`v-btn-${oId}`);
+        const oOverlay = document.getElementById(`video-play-btn-${oId}`);
+        if (oBtn) oBtn.innerText = '▶';
+        if (oOverlay) oOverlay.style.display = 'flex';
+      }
+    });
+
+    if (video.paused) {
+      video.play();
+      if (btn) btn.innerText = '⏸';
+      if (overlayBtn) overlayBtn.style.display = 'none';
+    } else {
+      video.pause();
+      if (btn) btn.innerText = '▶';
+      if (overlayBtn) overlayBtn.style.display = 'flex';
+    }
+  }
+
+  function updateCustomVideoTime(id) {
+    const video = document.getElementById(`video-elem-${id}`);
+    const fill = document.getElementById(`v-fill-${id}`);
+    const timeEl = document.getElementById(`v-time-${id}`);
+    if (!video) return;
+
+    if (video.duration) {
+      const pct = (video.currentTime / video.duration) * 100;
+      if (fill) fill.style.width = `${pct}%`;
+      if (timeEl) timeEl.innerText = `${formatTimeSec(video.currentTime)} / ${formatTimeSec(video.duration)}`;
+    }
+  }
+
+  function initCustomVideoMeta(id) {
+    const video = document.getElementById(`video-elem-${id}`);
+    const timeEl = document.getElementById(`v-time-${id}`);
+    if (video && timeEl && video.duration) {
+      timeEl.innerText = `00:00 / ${formatTimeSec(video.duration)}`;
+    }
+  }
+
+  function seekCustomVideo(e, id) {
+    const video = document.getElementById(`video-elem-${id}`);
+    const bar = e.currentTarget;
+    if (!video || !bar) return;
+    const rect = bar.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const pct = clickX / rect.width;
+    if (video.duration) {
+      video.currentTime = pct * video.duration;
+    }
+  }
+
+  function toggleMuteCustomVideo(id) {
+    const video = document.getElementById(`video-elem-${id}`);
+    const muteBtn = document.getElementById(`v-mute-${id}`);
+    if (!video || !muteBtn) return;
+    video.muted = !video.muted;
+    muteBtn.innerText = video.muted ? '🔇' : '🔊';
+  }
+
+  function fullscreenCustomVideo(id) {
+    const box = document.getElementById(`video-box-${id}`);
+    if (!box) return;
+    if (box.requestFullscreen) box.requestFullscreen();
+    else if (box.webkitRequestFullscreen) box.webkitRequestFullscreen();
+  }
+
+  function resetCustomVideo(id) {
+    const btn = document.getElementById(`v-btn-${id}`);
+    const overlayBtn = document.getElementById(`video-play-btn-${id}`);
+    const fill = document.getElementById(`v-fill-${id}`);
+    if (btn) btn.innerText = '▶';
+    if (overlayBtn) overlayBtn.style.display = 'flex';
+    if (fill) fill.style.width = '0%';
+  }
+
+  function formatTimeSec(seconds) {
+    if (isNaN(seconds) || seconds === Infinity) return '00:00';
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m < 10 ? '0' + m : m}:${s < 10 ? '0' + s : s}`;
+  }
+
+  // --- PDF Lightbox Modal Helpers ---
+  function openPdfModal(url, fileName) {
+    document.getElementById('pdf-modal-title').innerText = `📄 ${fileName || 'معاينة مستند PDF'}`;
+    document.getElementById('pdf-modal-iframe').src = url;
+    const dl = document.getElementById('pdf-modal-download');
+    dl.href = url;
+    dl.download = fileName || 'document.pdf';
+    document.getElementById('pdf-modal').classList.add('active');
+  }
+
+  function closePdfModal() {
+    document.getElementById('pdf-modal-iframe').src = '';
+    document.getElementById('pdf-modal').classList.remove('active');
+  }
+
   function markMessageDelivered(msgId) {
     if (!msgId) return;
     deliveredMessageIds.add(msgId);
@@ -1366,6 +1693,10 @@
       statusEl.innerText = '✓✓';
       statusEl.className = 'chat-check chat-check-delivered';
     }
+    const recvBox = document.getElementById(`receiver-progress-box-${msgId}`);
+    if (recvBox) recvBox.style.display = 'none';
+    const upBox = document.getElementById(`progress-box-${msgId}`);
+    if (upBox) upBox.style.display = 'none';
   }
 
   function openImageModal(src) {
@@ -1969,10 +2300,62 @@
     switch (data.type) {
       case 'CHAT_MSG':
         appendChatMessage(data, false);
-        // Reply back with ACK to update sender's checkmark to blue double check (✓✓)
         if (data.id && senderConn && senderConn.open) {
           senderConn.send({ type: 'MSG_ACK', id: data.id });
         }
+        break;
+
+      case 'CHAT_MSG_START':
+        pendingChunkBuffers.set(data.id, {
+          totalChunks: data.totalChunks,
+          receivedChunks: new Array(data.totalChunks),
+          receivedCount: 0,
+          meta: data
+        });
+        break;
+
+      case 'CHAT_MSG_CHUNK':
+        const buf = pendingChunkBuffers.get(data.id);
+        if (buf) {
+          if (!buf.receivedChunks[data.chunkIndex]) {
+            buf.receivedChunks[data.chunkIndex] = data.chunkData;
+            buf.receivedCount++;
+
+            const receiverPct = Math.round((buf.receivedCount / buf.totalChunks) * 100);
+
+            if (senderConn && senderConn.open) {
+              senderConn.send({
+                type: 'MSG_PROGRESS_ACK',
+                id: data.id,
+                pct: receiverPct
+              });
+            }
+
+            if (buf.receivedCount >= buf.totalChunks) {
+              const fullContent = buf.receivedChunks.join('');
+              const fullMsgData = {
+                id: data.id,
+                type: 'CHAT_MSG',
+                msgType: buf.meta.msgType,
+                content: fullContent,
+                fileName: buf.meta.fileName,
+                sender: buf.meta.sender,
+                time: buf.meta.time
+              };
+
+              appendChatMessage(fullMsgData, false);
+              pendingChunkBuffers.delete(data.id);
+
+              if (senderConn && senderConn.open) {
+                senderConn.send({ type: 'MSG_ACK', id: data.id });
+              }
+            }
+          }
+        }
+        break;
+
+      case 'MSG_PROGRESS_ACK':
+        updateReceiverProgressUI(data.id, data.pct);
         break;
 
       case 'MSG_ACK':
