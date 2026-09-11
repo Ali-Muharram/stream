@@ -113,7 +113,7 @@
       font-weight: bold;
     }
 
-    /* Cinema Video Player Container (Universal Multi-Engine) */
+    /* Cinema Video Player Container */
     .cinema-wrapper {
       width: 100%;
       position: relative;
@@ -255,6 +255,26 @@
       border-radius: 8px;
     }
 
+    /* Recent Friends Chip */
+    .recent-peer-chip {
+      background: rgba(99, 102, 241, 0.15);
+      border: 1px dashed rgba(99, 102, 241, 0.3);
+      color: #c7d2fe;
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .recent-peer-chip:hover {
+      background: rgba(99, 102, 241, 0.3);
+      color: #fff;
+    }
+
     /* Badges & Status */
     .badge {
       display: inline-flex;
@@ -345,10 +365,11 @@
         <span id="status-text">غير متصل</span>
       </span>
 
-      <!-- My ID tag -->
+      <!-- Fixed Device ID tag -->
       <div class="id-tag">
-        <span>غرفتك:</span>
+        <span>ID جهازك الثابت:</span>
         <code id="my-id">جاري التحميل...</code>
+        <button class="btn btn-secondary btn-sm" onclick="changeCustomPeerId()" title="تعديل معرف جهازك الثابت">✏️ تعديل الـ ID</button>
         <button class="btn btn-secondary btn-sm" onclick="copyMyId()">📋 نسخ ID</button>
         <button class="btn btn-secondary btn-sm" onclick="copyRoomLink()">🔗 الرابط</button>
       </div>
@@ -369,16 +390,16 @@
     </div>
   </div>
 
-  <!-- Minimal Control Grid -->
+  <!-- Control & Connection Panels -->
   <div class="panels-grid">
-    <!-- Video Loader Card with Engine Type Indicator -->
+    <!-- Video Loader Card -->
     <div class="card">
       <div class="card-title">
         <div style="display:flex; align-items:center; gap:8px;">
           <span>🌐 رابط الفيديو أو الموقع</span>
           <span id="source-type-badge" class="source-type-tag">🔴 YouTube</span>
         </div>
-        <button class="btn btn-secondary btn-sm" onclick="userForceSync()" title="إعادة مزامنة الوقت والسرعة فورياً مع باقي الأطراف">🔄 مزامنة الوقت الآن</button>
+        <button class="btn btn-secondary btn-sm" onclick="userForceSync()" title="إعادة مزامنة الوقت والسرعة فورياً">🔄 مزامنة الوقت الآن</button>
       </div>
       <div class="input-group">
         <input type="text" id="video-url-input" placeholder="أدخل رابط من YouTube, Vimeo, Dailymotion, أو رابط MP4/M3U8 مباشر...">
@@ -386,15 +407,23 @@
       </div>
     </div>
 
-    <!-- Peer Connection Card -->
+    <!-- Peer Connection & Saved Friends Card -->
     <div class="card">
       <div class="card-title">
-        <span>🔗 الانضمام لصديق</span>
+        <span>🔗 الانضمام إلى صديق</span>
         <span id="peer-count" style="color: var(--accent); font-size: 0.85rem;">0 متصلين</span>
       </div>
       <div class="input-group">
         <input type="text" id="peer-id-input" placeholder="أدخل ID صديقك للانضمام...">
         <button class="btn btn-primary" onclick="connectToPeer()">اتصال ⚡</button>
+      </div>
+
+      <!-- Saved Friends / Auto-Reconnect Bar -->
+      <div id="recent-peers-wrapper" style="margin-top: 10px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 0.8rem; color: var(--text-muted);">
+        <span>الأصدقاء السابقون:</span>
+        <div id="recent-peers-list" style="display: flex; gap: 6px; flex-wrap: wrap;">
+          <span style="color: #64748b;">(لا يوجد أصدقاء مسجلين بعد)</span>
+        </div>
       </div>
     </div>
   </div>
@@ -426,26 +455,108 @@
   let lastRecordedTime = 0;
   let lastCheckTimestamp = Date.now();
 
+  // Auto-Reconnect State
+  let isAutoReconnecting = false;
+  let autoReconnectTimer = null;
+  let targetAutoReconnectId = null;
+
   const html5Video = document.getElementById('html5-player');
   const iframePlayer = document.getElementById('iframe-player');
   const ytWrapper = document.getElementById('yt-player-wrapper');
 
-  // --- 1. Universal Engine Switcher & Detection ---
+  // --- 1. Persistent Peer ID Management (تثبيت ID الجهاز تلقائياً) ---
+  function getOrCreatePersistentPeerId() {
+    let savedId = localStorage.getItem('my_persistent_peer_id');
+    if (!savedId) {
+      savedId = 'user-' + Math.random().toString(36).substring(2, 8);
+      localStorage.setItem('my_persistent_peer_id', savedId);
+    }
+    return savedId;
+  }
+
+  function changeCustomPeerId() {
+    const currentId = getOrCreatePersistentPeerId();
+    const newId = prompt('أدخل ID ثابت خاص بك لهذا الجهاز:', currentId);
+    if (newId && newId.trim() !== '' && newId.trim() !== currentId) {
+      const cleanId = newId.trim().replace(/[^a-zA-Z0-9_-]/g, '');
+      localStorage.setItem('my_persistent_peer_id', cleanId);
+      showToast('✏️ تم تغيير ID جهازك، جاري إعادة التهيئة...');
+      if (peer) peer.destroy();
+      setTimeout(() => initPeerJS(), 500);
+    }
+  }
+
+  // --- 2. Save Connected Friends & Recent History (تسجيل الـ ID للطرف الثاني) ---
+  function saveRecentPeer(remoteId) {
+    if (!remoteId || remoteId === getOrCreatePersistentPeerId()) return;
+    localStorage.setItem('last_connected_peer_id', remoteId);
+    
+    let recentList = JSON.parse(localStorage.getItem('recent_peers_list') || '[]');
+    recentList = recentList.filter(id => id !== remoteId);
+    recentList.unshift(remoteId);
+    if (recentList.length > 5) recentList.pop();
+    
+    localStorage.setItem('recent_peers_list', JSON.stringify(recentList));
+    renderRecentPeersUI();
+  }
+
+  function renderRecentPeersUI() {
+    const container = document.getElementById('recent-peers-list');
+    const recentList = JSON.parse(localStorage.getItem('recent_peers_list') || '[]');
+    if (recentList.length === 0) {
+      container.innerHTML = `<span style="color: #64748b;">(لا يوجد أصدقاء مسجلين بعد)</span>`;
+      return;
+    }
+
+    container.innerHTML = recentList.map(id => `
+      <span class="recent-peer-chip" onclick="connectToPeer('${id}')" title="انضمام سريع">
+        ⚡ ${id}
+      </span>
+    `).join('');
+  }
+
+  // --- 3. Auto-Reconnect Engine (إعادة الاتصال التلقائي عند الانقطاع) ---
+  function startAutoReconnectProcess(remoteId) {
+    if (!remoteId || isAutoReconnecting) return;
+    targetAutoReconnectId = remoteId;
+    isAutoReconnecting = true;
+
+    showToast(`🔄 انقطع الاتصال، جاري إعادة الاتصال التلقائي بـ ${remoteId}...`);
+    updateStatus('connecting', `إعادة اتصال بـ ${remoteId}...`);
+
+    if (autoReconnectTimer) clearInterval(autoReconnectTimer);
+
+    autoReconnectTimer = setInterval(() => {
+      // If already reconnected
+      if (activeConnections.has(targetAutoReconnectId) && activeConnections.get(targetAutoReconnectId).open) {
+        clearInterval(autoReconnectTimer);
+        isAutoReconnecting = false;
+        showToast('✅ تم إعادة الاتصال التلقائي بنجاح!');
+        return;
+      }
+
+      if (peer && !peer.destroyed) {
+        if (peer.disconnected) {
+          peer.reconnect();
+        } else {
+          const conn = peer.connect(targetAutoReconnectId, { reliable: true });
+          registerConnection(conn);
+        }
+      }
+    }, 3000);
+  }
+
+  // --- 4. Universal Engine Switcher & Detection ---
   function detectSourceType(url) {
     if (!url) return 'youtube';
     const trimmed = url.trim();
 
-    // Direct MP4 / WebM / OGG / M3U8 video file extension or blob
     if (/\.(mp4|webm|ogg|m3u8|mov|mpd)(\?.*)?$/i.test(trimmed) || trimmed.startsWith('blob:') || trimmed.startsWith('data:video/')) {
       return 'html5';
     }
-
-    // YouTube URLs
     if (/(youtube\.com|youtu\.be)/i.test(trimmed) || /^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
       return 'youtube';
     }
-
-    // Generic Website / Vimeo / Dailymotion Embed
     return 'iframe';
   }
 
@@ -453,7 +564,6 @@
     activeEngine = engineType;
     currentSourceUrl = src;
 
-    // Hide all wrappers initially
     ytWrapper.style.display = 'none';
     html5Video.style.display = 'none';
     iframePlayer.style.display = 'none';
@@ -489,7 +599,6 @@
       badge.style.color = '#d8b4fe';
 
       let embedUrl = src;
-      // Convert Vimeo or Dailymotion link to embed URL if needed
       if (src.includes('vimeo.com/') && !src.includes('player.vimeo.com')) {
         const vimeoId = src.split('vimeo.com/')[1].split('?')[0].split('#')[0];
         embedUrl = `https://player.vimeo.com/video/${vimeoId}`;
@@ -502,7 +611,7 @@
     }
   }
 
-  // --- 2. HTML5 Video Event Listeners (Full Parity with PeerJS Sync) ---
+  // --- 5. HTML5 Video Event Listeners ---
   html5Video.addEventListener('play', () => {
     if (isRemoteAction || activeEngine !== 'html5') return;
     broadcastSignal({ type: 'PLAY', currentTime: html5Video.currentTime, rate: html5Video.playbackRate });
@@ -538,7 +647,7 @@
     broadcastSignal({ type: 'ENDED' });
   });
 
-  // --- 3. YouTube IFrame API Handler ---
+  // --- 6. YouTube IFrame API Handler ---
   function onYouTubeIframeAPIReady() {
     ytPlayer = new YT.Player('player', {
       height: '100%',
@@ -620,7 +729,7 @@
     showToast('⚠️ يتعذر تشغيل المصدر بسبب قيود التضمين للموقع الاصلي');
   }
 
-  // --- 4. Periodic Monitor for Native Controls ---
+  // --- 7. Periodic Monitor ---
   setInterval(() => {
     if (activeEngine === 'youtube' && isPlayerReady && ytPlayer && ytPlayer.getCurrentTime) {
       if (checkIsAd()) {
@@ -671,21 +780,32 @@
     }
   }, 350);
 
-  // --- 5. PeerJS Setup & Universal Signal Handler ---
+  // --- 8. PeerJS Setup & Persistent Device Registration ---
   function initPeerJS() {
     updateStatus('connecting', 'جاري الاتصال بالسيرفر...');
-    peer = new Peer({ debug: 1 });
+
+    const persistentId = getOrCreatePersistentPeerId();
+
+    peer = new Peer(persistentId, { debug: 1 });
 
     peer.on('open', (id) => {
       document.getElementById('my-id').innerText = id;
       updateStatus('disconnected', 'جاهز للاتصال');
-      showToast('تم الاتصال بموزع PeerJS بنجاح ✅');
+      showToast(`تم تثبيت ID جهازك: (${id}) ✅`);
 
+      renderRecentPeersUI();
+
+      // Auto-connect from URL param or saved friend
       const urlParams = new URLSearchParams(window.location.search);
       const roomParam = urlParams.get('room');
+      const lastFriend = localStorage.getItem('last_connected_peer_id');
+
       if (roomParam && roomParam !== id) {
         document.getElementById('peer-id-input').value = roomParam;
         connectToPeer(roomParam);
+      } else if (lastFriend && lastFriend !== id) {
+        // Automatically start auto-reconnect to last connected friend
+        startAutoReconnectProcess(lastFriend);
       }
     });
 
@@ -694,14 +814,19 @@
     });
 
     peer.on('disconnected', () => {
-      updateStatus('disconnected', 'انقطع الاتصال');
+      updateStatus('disconnected', 'انقطع الاتصال بالسيرفر');
       showToast('⚠️ انقطع الاتصال بالسيرفر، جاري المحاولة...');
       peer.reconnect();
     });
 
     peer.on('error', (err) => {
       console.error('PeerJS Error:', err);
-      showToast('❌ خطأ في الاتصال: ' + (err.type || err.message));
+      if (err.type === 'unavailable-id') {
+        // ID in use elsewhere, handle gracefully
+        showToast('⚠️ هذا المعرف مستخدم في علامة تبويب أخرى');
+      } else {
+        showToast('❌ خطأ في الاتصال: ' + (err.type || err.message));
+      }
       updateStatus('disconnected', 'خطأ بالاتصال');
     });
   }
@@ -710,7 +835,9 @@
     const remoteId = targetId || document.getElementById('peer-id-input').value.trim();
     if (!remoteId) return showToast('⚠️ يرجى إدخال ID الطرف الآخر');
     if (remoteId === peer.id) return showToast('⚠️ لا يمكنك الاتصال بنفسك!');
-    if (activeConnections.has(remoteId)) return showToast('ملاحظة: أنت متصل بالفعل بهذا الطرف');
+    if (activeConnections.has(remoteId) && activeConnections.get(remoteId).open) {
+      return showToast('ملاحظة: أنت متصل بالفعل بهذا الطرف');
+    }
 
     updateStatus('connecting', 'جاري الاتصال...');
     const conn = peer.connect(remoteId, { reliable: true });
@@ -720,9 +847,15 @@
   function registerConnection(conn) {
     const setupListeners = () => {
       activeConnections.set(conn.peer, conn);
+      saveRecentPeer(conn.peer);
       updatePeerCountUI();
       updateStatus('connected', `متصل (${activeConnections.size})`);
       showToast(`تم الاتصال بنجاح مع: ${conn.peer} ✅`);
+
+      if (isAutoReconnecting && conn.peer === targetAutoReconnectId) {
+        isAutoReconnecting = false;
+        if (autoReconnectTimer) clearInterval(autoReconnectTimer);
+      }
 
       // Send initial state to newly connected peer
       let currentTime = 0;
@@ -758,13 +891,15 @@
       activeConnections.delete(conn.peer);
       updatePeerCountUI();
       showToast(`انقطع الاتصال مع: ${conn.peer} ❌`);
-      if (activeConnections.size === 0) updateStatus('disconnected', 'غير متصل');
-      else updateStatus('connected', `متصل (${activeConnections.size})`);
+
+      // Trigger automatic reconnection to dropped peer
+      startAutoReconnectProcess(conn.peer);
     });
 
     conn.on('error', (err) => {
       activeConnections.delete(conn.peer);
       updatePeerCountUI();
+      startAutoReconnectProcess(conn.peer);
     });
   }
 
@@ -774,7 +909,7 @@
     });
   }
 
-  // --- 6. Universal Remote Signal Execution ---
+  // --- 9. Universal Remote Signal Execution ---
   function handleRemoteSignal(data, senderConn) {
     isRemoteAction = true;
 
@@ -898,7 +1033,7 @@
     }
   }
 
-  // --- 7. User Action Triggers ---
+  // --- 10. User Action Triggers ---
   function userLoadAndSyncVideo() {
     const input = document.getElementById('video-url-input').value.trim();
     if (!input) return showToast('⚠️ يرجى إدخال رابط فيديو أو موقع');
@@ -939,7 +1074,7 @@
     showToast('🔄 تم إرسال أمر المزامنة اللحظية للجميع');
   }
 
-  // --- 8. Helper Functions ---
+  // --- 11. Helper Functions ---
   function extractYouTubeId(url) {
     if (/^[a-zA-Z0-9_-]{11}$/.test(url)) return url;
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
