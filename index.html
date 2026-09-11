@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>YouTube Sync Cinema - مشاهدة جماعية تزامنية شمولية</title>
+  <title>Universal Video Sync Cinema - مشاهدة تزامنية لكافة المواقع والفيديوهات</title>
   
   <!-- خط Google Fonts Tajawal -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -113,7 +113,7 @@
       font-weight: bold;
     }
 
-    /* Cinema Video Player Container (Occupies Most of Screen) */
+    /* Cinema Video Player Container (Universal Multi-Engine) */
     .cinema-wrapper {
       width: 100%;
       position: relative;
@@ -138,8 +138,7 @@
       }
     }
 
-    .player-container iframe, 
-    .player-container div#player {
+    .player-wrapper {
       position: absolute;
       top: 0;
       left: 0;
@@ -148,7 +147,7 @@
       border: none;
     }
 
-    /* Controls & Connection Panel Grid (Minimal & Clean) */
+    /* Controls & Connection Panel Grid */
     .panels-grid {
       display: grid;
       grid-template-columns: 1fr;
@@ -179,6 +178,15 @@
       align-items: center;
       justify-content: space-between;
       color: #e2e8f0;
+    }
+
+    .source-type-tag {
+      font-size: 0.78rem;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(99, 102, 241, 0.2);
+      color: #a5b4fc;
+      border: 1px solid rgba(99, 102, 241, 0.3);
     }
 
     .input-group {
@@ -326,8 +334,8 @@
   <!-- Top Navigation Bar -->
   <div class="navbar">
     <div class="brand">
-      <span style="font-size: 1.5rem;">🍿</span>
-      <h1>YouTube Sync Cinema</h1>
+      <span style="font-size: 1.5rem;">🌐</span>
+      <h1>Universal Video Sync Cinema</h1>
     </div>
 
     <div class="nav-actions">
@@ -347,23 +355,33 @@
     </div>
   </div>
 
-  <!-- Cinema Player (Occupies Most of Screen - Controlled natively via YouTube controls) -->
+  <!-- Universal Multi-Engine Video Player Container -->
   <div class="cinema-wrapper">
     <div class="player-container">
-      <div id="player"></div>
+      <!-- YouTube API Player Wrapper -->
+      <div id="yt-player-wrapper" class="player-wrapper">
+        <div id="player"></div>
+      </div>
+      <!-- HTML5 Direct Video Player (MP4 / WebM / OGG / HLS / M3U8) -->
+      <video id="html5-player" class="player-wrapper" controls style="display:none; width:100%; height:100%; object-fit:contain; background:#000;"></video>
+      <!-- Generic iFrame Embed Player (Vimeo, Dailymotion, Custom Sites) -->
+      <iframe id="iframe-player" class="player-wrapper" style="display:none; width:100%; height:100%; border:none;" allow="autoplay; fullscreen; encrypted-media" allowfullscreen></iframe>
     </div>
   </div>
 
-  <!-- Minimal Control Grid (Streamlined & Clean) -->
+  <!-- Minimal Control Grid -->
   <div class="panels-grid">
-    <!-- Video Loader Card with Single Sync Button -->
+    <!-- Video Loader Card with Engine Type Indicator -->
     <div class="card">
       <div class="card-title">
-        <span>📺 رابط الفيديو</span>
-        <button class="btn btn-secondary btn-sm" onclick="userForceSync()" title="إعادة مزامنة الوقت فورياً مع باقي الأطراف">🔄 مزامنة الوقت الآن</button>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span>🌐 رابط الفيديو أو الموقع</span>
+          <span id="source-type-badge" class="source-type-tag">🔴 YouTube</span>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="userForceSync()" title="إعادة مزامنة الوقت والسرعة فورياً مع باقي الأطراف">🔄 مزامنة الوقت الآن</button>
       </div>
       <div class="input-group">
-        <input type="text" id="youtube-url" placeholder="أدخل رابط فيديو YouTube هنا...">
+        <input type="text" id="video-url-input" placeholder="أدخل رابط من YouTube, Vimeo, Dailymotion, أو رابط MP4/M3U8 مباشر...">
         <button class="btn btn-primary" onclick="userLoadAndSyncVideo()">تغيير للجميع 🚀</button>
       </div>
     </div>
@@ -390,24 +408,142 @@
 <script src="https://www.youtube.com/iframe_api"></script>
 
 <script>
-  // Global Application State
+  // Global State & Peer Setup
   let peer = null;
-  let activeConnections = new Map(); // Stores key: peerId, value: DataConnection
+  let activeConnections = new Map();
   let ytPlayer = null;
   let isPlayerReady = false;
-  let isRemoteAction = false; // Flag to prevent infinite broadcast loops
-  let currentVideoId = 'dQw4w9WgXcQ'; // Default video ID
+  let isRemoteAction = false;
+  
+  // Current Media Source State
+  let activeEngine = 'youtube'; // 'youtube' | 'html5' | 'iframe'
+  let currentSourceUrl = 'dQw4w9WgXcQ';
   let isAdPlaying = false;
+
   let lastRecordedRate = 1;
   let lastRecordedMuted = false;
   let lastRecordedVolume = 100;
+  let lastRecordedTime = 0;
+  let lastCheckTimestamp = Date.now();
 
-  // --- 1. YouTube IFrame API Initialization ---
+  const html5Video = document.getElementById('html5-player');
+  const iframePlayer = document.getElementById('iframe-player');
+  const ytWrapper = document.getElementById('yt-player-wrapper');
+
+  // --- 1. Universal Engine Switcher & Detection ---
+  function detectSourceType(url) {
+    if (!url) return 'youtube';
+    const trimmed = url.trim();
+
+    // Direct MP4 / WebM / OGG / M3U8 video file extension or blob
+    if (/\.(mp4|webm|ogg|m3u8|mov|mpd)(\?.*)?$/i.test(trimmed) || trimmed.startsWith('blob:') || trimmed.startsWith('data:video/')) {
+      return 'html5';
+    }
+
+    // YouTube URLs
+    if (/(youtube\.com|youtu\.be)/i.test(trimmed) || /^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
+      return 'youtube';
+    }
+
+    // Generic Website / Vimeo / Dailymotion Embed
+    return 'iframe';
+  }
+
+  function setEngine(engineType, src) {
+    activeEngine = engineType;
+    currentSourceUrl = src;
+
+    // Hide all wrappers initially
+    ytWrapper.style.display = 'none';
+    html5Video.style.display = 'none';
+    iframePlayer.style.display = 'none';
+
+    const badge = document.getElementById('source-type-badge');
+
+    if (engineType === 'youtube') {
+      ytWrapper.style.display = 'block';
+      badge.innerText = '🔴 YouTube';
+      badge.style.background = 'rgba(239, 68, 68, 0.2)';
+      badge.style.color = '#fca5a5';
+
+      const videoId = extractYouTubeId(src);
+      if (isPlayerReady && ytPlayer && ytPlayer.loadVideoById) {
+        isRemoteAction = true;
+        ytPlayer.loadVideoById(videoId, 0);
+        setTimeout(() => { isRemoteAction = false; }, 500);
+      }
+    } else if (engineType === 'html5') {
+      html5Video.style.display = 'block';
+      badge.innerText = '🎬 فيديو مباشر (MP4/HLS)';
+      badge.style.background = 'rgba(34, 197, 94, 0.2)';
+      badge.style.color = '#86efac';
+
+      isRemoteAction = true;
+      html5Video.src = src;
+      html5Video.load();
+      setTimeout(() => { isRemoteAction = false; }, 500);
+    } else if (engineType === 'iframe') {
+      iframePlayer.style.display = 'block';
+      badge.innerText = '🌐 موقع / Embed خارجي';
+      badge.style.background = 'rgba(168, 85, 247, 0.2)';
+      badge.style.color = '#d8b4fe';
+
+      let embedUrl = src;
+      // Convert Vimeo or Dailymotion link to embed URL if needed
+      if (src.includes('vimeo.com/') && !src.includes('player.vimeo.com')) {
+        const vimeoId = src.split('vimeo.com/')[1].split('?')[0].split('#')[0];
+        embedUrl = `https://player.vimeo.com/video/${vimeoId}`;
+      } else if (src.includes('dailymotion.com/video/') && !src.includes('embed')) {
+        const dmId = src.split('dailymotion.com/video/')[1].split('?')[0];
+        embedUrl = `https://www.dailymotion.com/embed/video/${dmId}`;
+      }
+
+      iframePlayer.src = embedUrl;
+    }
+  }
+
+  // --- 2. HTML5 Video Event Listeners (Full Parity with PeerJS Sync) ---
+  html5Video.addEventListener('play', () => {
+    if (isRemoteAction || activeEngine !== 'html5') return;
+    broadcastSignal({ type: 'PLAY', currentTime: html5Video.currentTime, rate: html5Video.playbackRate });
+  });
+
+  html5Video.addEventListener('pause', () => {
+    if (isRemoteAction || activeEngine !== 'html5') return;
+    broadcastSignal({ type: 'PAUSE', currentTime: html5Video.currentTime });
+  });
+
+  html5Video.addEventListener('seeking', () => {
+    if (isRemoteAction || activeEngine !== 'html5') return;
+    broadcastSignal({ type: 'SEEK', currentTime: html5Video.currentTime });
+  });
+
+  html5Video.addEventListener('ratechange', () => {
+    if (isRemoteAction || activeEngine !== 'html5') return;
+    broadcastSignal({ type: 'RATE_CHANGE', rate: html5Video.playbackRate });
+    showToast(`⚡ تم تغيير السرعة إلى: ${html5Video.playbackRate}x`);
+  });
+
+  html5Video.addEventListener('volumechange', () => {
+    if (isRemoteAction || activeEngine !== 'html5') return;
+    broadcastSignal({
+      type: 'VOLUME_CHANGE',
+      isMuted: html5Video.muted,
+      volume: Math.round(html5Video.volume * 100)
+    });
+  });
+
+  html5Video.addEventListener('ended', () => {
+    if (isRemoteAction || activeEngine !== 'html5') return;
+    broadcastSignal({ type: 'ENDED' });
+  });
+
+  // --- 3. YouTube IFrame API Handler ---
   function onYouTubeIframeAPIReady() {
     ytPlayer = new YT.Player('player', {
       height: '100%',
       width: '100%',
-      videoId: currentVideoId,
+      videoId: 'dQw4w9WgXcQ',
       playerVars: {
         'autoplay': 0,
         'controls': 1,
@@ -427,33 +563,24 @@
 
   function onPlayerReady(event) {
     isPlayerReady = true;
-    if (ytPlayer.isMuted) lastRecordedMuted = ytPlayer.isMuted();
-    if (ytPlayer.getVolume) lastRecordedVolume = ytPlayer.getVolume();
-    showToast('جاهز لتشغيل ومزامنة أزرار يوتيوب المباشرة بالكامل 🎬');
+    showToast('جاهز لتشغيل ومزامنة الفيديوهات والمواقع بالكامل 🎬');
   }
 
-  let lastRecordedTime = 0;
-  let lastCheckTimestamp = Date.now();
-
-  // Helper to check if YouTube player is currently showing an Ad
   function checkIsAd() {
-    if (!ytPlayer || !ytPlayer.getVideoData) return false;
+    if (activeEngine !== 'youtube' || !ytPlayer || !ytPlayer.getVideoData) return false;
     const data = ytPlayer.getVideoData();
     return (data && (data.isAd || data.ad_device));
   }
 
-  // Handle YouTube native state changes (Play / Pause / Seek / Buffer / Ad)
   function onPlayerStateChange(event) {
-    if (isRemoteAction) return; // Triggered by remote peer, skip broadcast
+    if (isRemoteAction || activeEngine !== 'youtube') return;
 
-    // Ad detection check
-    const isAdNow = checkIsAd();
-    if (isAdNow) {
+    if (checkIsAd()) {
       if (!isAdPlaying) {
         isAdPlaying = true;
         showToast('📢 يجرى عرض إعلان لدى أحد الأطراف (تجميد المزامنة المؤقت)');
       }
-      return; // Do not broadcast time sync during Ads!
+      return;
     } else if (isAdPlaying) {
       isAdPlaying = false;
       showToast('✅ انتهى الإعلان، جاري استئناف المزامنة التلقائية');
@@ -463,112 +590,90 @@
 
     const currentTime = ytPlayer.getCurrentTime ? ytPlayer.getCurrentTime() : 0;
     const currentRate = ytPlayer.getPlaybackRate ? ytPlayer.getPlaybackRate() : 1;
-    lastRecordedTime = currentTime;
-    lastCheckTimestamp = Date.now();
 
     if (event.data === YT.PlayerState.PLAYING) {
       broadcastSignal({ type: 'PLAY', currentTime: currentTime, rate: currentRate });
     } else if (event.data === YT.PlayerState.PAUSED) {
       broadcastSignal({ type: 'PAUSE', currentTime: currentTime });
     } else if (event.data === YT.PlayerState.BUFFERING) {
-      // Seek or Timeline drag
       broadcastSignal({ type: 'SEEK', currentTime: currentTime });
     } else if (event.data === YT.PlayerState.ENDED) {
       broadcastSignal({ type: 'ENDED' });
     }
   }
 
-  // Handle YouTube native playback rate speed changes (e.g. 1.25x, 1.5x, 2x)
   function onPlaybackRateChange(event) {
-    if (isRemoteAction) return;
+    if (isRemoteAction || activeEngine !== 'youtube') return;
     const newRate = event.data;
-    lastRecordedRate = newRate;
     broadcastSignal({ type: 'RATE_CHANGE', rate: newRate });
     showToast(`⚡ تم تغيير سرعة التشغيل إلى: ${newRate}x`);
   }
 
-  // Handle YouTube native playback quality changes (e.g. 720p, 1080p, hd)
   function onPlaybackQualityChange(event) {
-    if (isRemoteAction) return;
-    const newQuality = event.data;
-    broadcastSignal({ type: 'QUALITY_CHANGE', quality: newQuality });
-    showToast(`📐 تم تغيير جودة الفيديو إلى: ${newQuality}`);
+    if (isRemoteAction || activeEngine !== 'youtube') return;
+    broadcastSignal({ type: 'QUALITY_CHANGE', quality: event.data });
+    showToast(`📐 تم تغيير الجودة إلى: ${event.data}`);
   }
 
   function onPlayerError(event) {
-    console.warn('YouTube Player Error:', event.data);
-    showToast('⚠️ يتعذر تشغيل بعض الفيديوهات بسبب قيود التضمين في يوتيوب');
+    console.warn('Player Error:', event.data);
+    showToast('⚠️ يتعذر تشغيل المصدر بسبب قيود التضمين للموقع الاصلي');
   }
 
-  // Periodic Monitor for All Native YouTube Controls (Timeline, Speed, Volume, Mute, Ads)
+  // --- 4. Periodic Monitor for Native Controls ---
   setInterval(() => {
-    if (!isPlayerReady || !ytPlayer || !ytPlayer.getCurrentTime) return;
-
-    // Check if ad is active
-    if (checkIsAd()) {
-      isAdPlaying = true;
-      return;
-    } else if (isAdPlaying) {
-      isAdPlaying = false;
-      userForceSync();
-    }
-
-    const currentTime = ytPlayer.getCurrentTime();
-    const now = Date.now();
-    const state = ytPlayer.getPlayerState ? ytPlayer.getPlayerState() : -1;
-    const currentRate = ytPlayer.getPlaybackRate ? ytPlayer.getPlaybackRate() : 1;
-    const isMuted = ytPlayer.isMuted ? ytPlayer.isMuted() : false;
-    const volume = ytPlayer.getVolume ? ytPlayer.getVolume() : 100;
-
-    // 1. Check Volume & Mute Changes
-    if (!isRemoteAction) {
-      if (isMuted !== lastRecordedMuted) {
-        lastRecordedMuted = isMuted;
-        broadcastSignal({ type: 'VOLUME_CHANGE', isMuted: isMuted, volume: volume });
-        showToast(`🔊 تم ${isMuted ? 'كتم' : 'تشغيل'} الصوت لدى الجميع`);
-      } else if (Math.abs(volume - lastRecordedVolume) > 5) {
-        lastRecordedVolume = volume;
-        broadcastSignal({ type: 'VOLUME_CHANGE', isMuted: isMuted, volume: volume });
-        showToast(`🔊 تم تغيير مستوى الصوت إلى: ${volume}%`);
+    if (activeEngine === 'youtube' && isPlayerReady && ytPlayer && ytPlayer.getCurrentTime) {
+      if (checkIsAd()) {
+        isAdPlaying = true;
+        return;
+      } else if (isAdPlaying) {
+        isAdPlaying = false;
+        userForceSync();
       }
-    }
 
-    // 2. Check Rate Changes
-    if (currentRate !== lastRecordedRate && !isRemoteAction) {
-      lastRecordedRate = currentRate;
-      broadcastSignal({ type: 'RATE_CHANGE', rate: currentRate });
-    }
+      const currentTime = ytPlayer.getCurrentTime();
+      const now = Date.now();
+      const state = ytPlayer.getPlayerState ? ytPlayer.getPlayerState() : -1;
+      const currentRate = ytPlayer.getPlaybackRate ? ytPlayer.getPlaybackRate() : 1;
+      const isMuted = ytPlayer.isMuted ? ytPlayer.isMuted() : false;
+      const volume = ytPlayer.getVolume ? ytPlayer.getVolume() : 100;
 
-    if (isRemoteAction) {
+      if (!isRemoteAction) {
+        if (isMuted !== lastRecordedMuted) {
+          lastRecordedMuted = isMuted;
+          broadcastSignal({ type: 'VOLUME_CHANGE', isMuted: isMuted, volume: volume });
+          showToast(`🔊 تم ${isMuted ? 'كتم' : 'تشغيل'} الصوت لدى الجميع`);
+        } else if (Math.abs(volume - lastRecordedVolume) > 5) {
+          lastRecordedVolume = volume;
+          broadcastSignal({ type: 'VOLUME_CHANGE', isMuted: isMuted, volume: volume });
+          showToast(`🔊 تم تغيير مستوى الصوت إلى: ${volume}%`);
+        }
+      }
+
+      if (isRemoteAction) {
+        lastRecordedTime = currentTime;
+        lastCheckTimestamp = now;
+        lastRecordedMuted = isMuted;
+        lastRecordedVolume = volume;
+        return;
+      }
+
+      if (state === YT.PlayerState.PLAYING) {
+        const elapsedSeconds = ((now - lastCheckTimestamp) / 1000) * currentRate;
+        const expectedTime = lastRecordedTime + elapsedSeconds;
+
+        if (Math.abs(currentTime - expectedTime) > 1.2) {
+          broadcastSignal({ type: 'SEEK', currentTime: currentTime });
+        }
+      }
       lastRecordedTime = currentTime;
       lastCheckTimestamp = now;
-      lastRecordedMuted = isMuted;
-      lastRecordedVolume = volume;
-      return;
     }
-
-    // 3. Native Timeline Drag / Seek Detection
-    if (state === YT.PlayerState.PLAYING) {
-      const elapsedSeconds = ((now - lastCheckTimestamp) / 1000) * currentRate;
-      const expectedTime = lastRecordedTime + elapsedSeconds;
-
-      if (Math.abs(currentTime - expectedTime) > 1.2) {
-        broadcastSignal({ type: 'SEEK', currentTime: currentTime });
-      }
-    } else if (state === YT.PlayerState.PAUSED || state === YT.PlayerState.BUFFERING) {
-      if (Math.abs(currentTime - lastRecordedTime) > 1.2) {
-        broadcastSignal({ type: 'SEEK', currentTime: currentTime });
-      }
-    }
-
-    lastRecordedTime = currentTime;
-    lastCheckTimestamp = now;
   }, 350);
 
-  // --- 2. PeerJS Setup & Connection Handling ---
+  // --- 5. PeerJS Setup & Universal Signal Handler ---
   function initPeerJS() {
     updateStatus('connecting', 'جاري الاتصال بالسيرفر...');
-
     peer = new Peer({ debug: 1 });
 
     peer.on('open', (id) => {
@@ -619,42 +724,45 @@
       updateStatus('connected', `متصل (${activeConnections.size})`);
       showToast(`تم الاتصال بنجاح مع: ${conn.peer} ✅`);
 
-      // Send initial room state to newly connected peer
-      if (isPlayerReady && ytPlayer && ytPlayer.getCurrentTime) {
-        const state = {
-          type: 'SYNC_INITIAL_STATE',
-          videoId: currentVideoId,
-          currentTime: ytPlayer.getCurrentTime(),
-          rate: ytPlayer.getPlaybackRate ? ytPlayer.getPlaybackRate() : 1,
-          isPlaying: ytPlayer.getPlayerState() === YT.PlayerState.PLAYING
-        };
-        conn.send(state);
+      // Send initial state to newly connected peer
+      let currentTime = 0;
+      let isPlaying = false;
+      let rate = 1;
+
+      if (activeEngine === 'youtube' && isPlayerReady && ytPlayer && ytPlayer.getCurrentTime) {
+        currentTime = ytPlayer.getCurrentTime();
+        isPlaying = ytPlayer.getPlayerState() === YT.PlayerState.PLAYING;
+        rate = ytPlayer.getPlaybackRate ? ytPlayer.getPlaybackRate() : 1;
+      } else if (activeEngine === 'html5') {
+        currentTime = html5Video.currentTime;
+        isPlaying = !html5Video.paused;
+        rate = html5Video.playbackRate;
       }
+
+      conn.send({
+        type: 'SYNC_INITIAL_STATE',
+        engineType: activeEngine,
+        src: currentSourceUrl,
+        currentTime: currentTime,
+        isPlaying: isPlaying,
+        rate: rate
+      });
     };
 
-    if (conn.open) {
-      setupListeners();
-    } else {
-      conn.on('open', setupListeners);
-    }
+    if (conn.open) setupListeners();
+    else conn.on('open', setupListeners);
 
-    conn.on('data', (data) => {
-      handleRemoteSignal(data, conn);
-    });
+    conn.on('data', (data) => handleRemoteSignal(data, conn));
 
     conn.on('close', () => {
       activeConnections.delete(conn.peer);
       updatePeerCountUI();
       showToast(`انقطع الاتصال مع: ${conn.peer} ❌`);
-      if (activeConnections.size === 0) {
-        updateStatus('disconnected', 'غير متصل');
-      } else {
-        updateStatus('connected', `متصل (${activeConnections.size})`);
-      }
+      if (activeConnections.size === 0) updateStatus('disconnected', 'غير متصل');
+      else updateStatus('connected', `متصل (${activeConnections.size})`);
     });
 
     conn.on('error', (err) => {
-      console.error('Connection Error:', err);
       activeConnections.delete(conn.peer);
       updatePeerCountUI();
     });
@@ -662,147 +770,181 @@
 
   function broadcastSignal(data) {
     activeConnections.forEach((conn) => {
-      if (conn && conn.open) {
-        conn.send(data);
-      }
+      if (conn && conn.open) conn.send(data);
     });
   }
 
-  // --- 3. Signal Reception & Execution ---
+  // --- 6. Universal Remote Signal Execution ---
   function handleRemoteSignal(data, senderConn) {
-    if (!isPlayerReady || !ytPlayer) return;
-
     isRemoteAction = true;
 
     switch (data.type) {
-      case 'CHANGE_VIDEO':
-        currentVideoId = data.videoId;
-        ytPlayer.loadVideoById(data.videoId, 0);
-        showToast('📺 تم تغيير الفيديو بواسطة الطرف الآخر');
+      case 'CHANGE_SOURCE':
+        setEngine(data.engineType, data.src);
+        showToast('🌐 تم تغيير مصدر الفيديو/الموقع بواسطة الطرف الآخر');
         break;
 
       case 'PLAY':
-        if (data.rate && ytPlayer.setPlaybackRate) ytPlayer.setPlaybackRate(data.rate);
-        syncTime(data.currentTime);
-        ytPlayer.playVideo();
-        showToast('▶️ تشغيل الفيديو بواسطة الطرف الآخر');
+        if (activeEngine === 'youtube' && ytPlayer) {
+          if (data.rate && ytPlayer.setPlaybackRate) ytPlayer.setPlaybackRate(data.rate);
+          syncTime(data.currentTime);
+          ytPlayer.playVideo();
+        } else if (activeEngine === 'html5') {
+          if (data.rate) html5Video.playbackRate = data.rate;
+          html5Video.currentTime = data.currentTime;
+          html5Video.play();
+        }
+        showToast('▶️ تشغيل بواسطة الطرف الآخر');
         break;
 
       case 'PAUSE':
-        syncTime(data.currentTime);
-        ytPlayer.pauseVideo();
+        if (activeEngine === 'youtube' && ytPlayer) {
+          syncTime(data.currentTime);
+          ytPlayer.pauseVideo();
+        } else if (activeEngine === 'html5') {
+          html5Video.currentTime = data.currentTime;
+          html5Video.pause();
+        }
         showToast('⏸️ إيقاف مؤقت بواسطة الطرف الآخر');
         break;
 
       case 'SEEK':
-        ytPlayer.seekTo(data.currentTime, true);
-        showToast('⏩ تم تقديم/تأخير الفيديو');
+        if (activeEngine === 'youtube' && ytPlayer) {
+          ytPlayer.seekTo(data.currentTime, true);
+        } else if (activeEngine === 'html5') {
+          html5Video.currentTime = data.currentTime;
+        }
+        showToast('⏩ تقديم/تأخير بواسطة الطرف الآخر');
         break;
 
       case 'RATE_CHANGE':
-        if (ytPlayer.setPlaybackRate) {
+        if (activeEngine === 'youtube' && ytPlayer && ytPlayer.setPlaybackRate) {
           ytPlayer.setPlaybackRate(data.rate);
-          showToast(`⚡ تم تغيير سرعة التشغيل إلى: ${data.rate}x`);
+        } else if (activeEngine === 'html5') {
+          html5Video.playbackRate = data.rate;
         }
+        showToast(`⚡ تغيرت السرعة إلى: ${data.rate}x`);
         break;
 
       case 'VOLUME_CHANGE':
-        if (data.isMuted) {
-          if (ytPlayer.mute) ytPlayer.mute();
-          showToast('🔊 تم كتم الصوت بواسطة الطرف الآخر');
-        } else {
-          if (ytPlayer.unMute) ytPlayer.unMute();
-          if (ytPlayer.setVolume && data.volume !== undefined) ytPlayer.setVolume(data.volume);
-          showToast(`🔊 تم تغيير الصوت إلى: ${data.volume}% بواسطة الطرف الآخر`);
+        if (activeEngine === 'youtube' && ytPlayer) {
+          if (data.isMuted && ytPlayer.mute) ytPlayer.mute();
+          else {
+            if (ytPlayer.unMute) ytPlayer.unMute();
+            if (ytPlayer.setVolume && data.volume !== undefined) ytPlayer.setVolume(data.volume);
+          }
+        } else if (activeEngine === 'html5') {
+          html5Video.muted = data.isMuted;
+          if (data.volume !== undefined) html5Video.volume = data.volume / 100;
         }
+        showToast('🔊 تم تغيير إعدادات الصوت بواسطة الطرف الآخر');
         break;
 
       case 'QUALITY_CHANGE':
-        if (ytPlayer.setPlaybackQuality) {
+        if (activeEngine === 'youtube' && ytPlayer && ytPlayer.setPlaybackQuality) {
           ytPlayer.setPlaybackQuality(data.quality);
-          showToast(`📐 تم تغيير جودة الفيديو إلى: ${data.quality}`);
+          showToast(`📐 تغيير الجودة إلى: ${data.quality}`);
         }
         break;
 
       case 'ENDED':
-        if (ytPlayer.pauseVideo) ytPlayer.pauseVideo();
-        showToast('🏁 انتهى الفيديو لدى الطرف الآخر');
+        if (activeEngine === 'youtube' && ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
+        else if (activeEngine === 'html5') html5Video.pause();
+        showToast('🏁 انتهى التشغيل لدي الطرف الآخر');
         break;
 
       case 'SYNC_INITIAL_STATE':
-        currentVideoId = data.videoId;
-        ytPlayer.loadVideoById({
-          videoId: data.videoId,
-          startSeconds: data.currentTime || 0
-        });
-        if (data.rate && ytPlayer.setPlaybackRate) ytPlayer.setPlaybackRate(data.rate);
-        if (data.isPlaying) {
-          ytPlayer.playVideo();
-        } else {
-          ytPlayer.pauseVideo();
-        }
-        showToast('🔄 تم استقبال حالة الغرفة ومزامنة الفيديو بالكامل');
+        setEngine(data.engineType, data.src);
+        setTimeout(() => {
+          if (data.engineType === 'youtube' && ytPlayer) {
+            ytPlayer.seekTo(data.currentTime || 0, true);
+            if (data.rate && ytPlayer.setPlaybackRate) ytPlayer.setPlaybackRate(data.rate);
+            if (data.isPlaying) ytPlayer.playVideo();
+            else ytPlayer.pauseVideo();
+          } else if (data.engineType === 'html5') {
+            html5Video.currentTime = data.currentTime || 0;
+            if (data.rate) html5Video.playbackRate = data.rate;
+            if (data.isPlaying) html5Video.play();
+            else html5Video.pause();
+          }
+        }, 600);
+        showToast('🔄 تم استقبال حالة الغرفة ومزامنتها بالكامل');
         break;
 
       case 'FORCE_SYNC':
-        if (data.rate && ytPlayer.setPlaybackRate) ytPlayer.setPlaybackRate(data.rate);
-        ytPlayer.seekTo(data.currentTime, true);
-        if (data.isPlaying) ytPlayer.playVideo();
-        else ytPlayer.pauseVideo();
-        showToast('🔄 تم تطبيق إعادة المزامنة اللحظية');
+        if (activeEngine === 'youtube' && ytPlayer) {
+          if (data.rate && ytPlayer.setPlaybackRate) ytPlayer.setPlaybackRate(data.rate);
+          ytPlayer.seekTo(data.currentTime, true);
+          if (data.isPlaying) ytPlayer.playVideo();
+          else ytPlayer.pauseVideo();
+        } else if (activeEngine === 'html5') {
+          if (data.rate) html5Video.playbackRate = data.rate;
+          html5Video.currentTime = data.currentTime;
+          if (data.isPlaying) html5Video.play();
+          else html5Video.pause();
+        }
+        showToast('🔄 تم تطبيق إعادة المزامنة الإجبارية');
         break;
     }
 
-    setTimeout(() => {
-      isRemoteAction = false;
-    }, 500);
+    setTimeout(() => { isRemoteAction = false; }, 500);
   }
 
   function syncTime(targetTime) {
-    if (!ytPlayer.getCurrentTime) return;
-    const currentTime = ytPlayer.getCurrentTime();
-    if (Math.abs(currentTime - targetTime) > 1.5) {
-      ytPlayer.seekTo(targetTime, true);
+    if (activeEngine === 'youtube' && ytPlayer && ytPlayer.getCurrentTime) {
+      if (Math.abs(ytPlayer.getCurrentTime() - targetTime) > 1.5) ytPlayer.seekTo(targetTime, true);
+    } else if (activeEngine === 'html5') {
+      if (Math.abs(html5Video.currentTime - targetTime) > 1.5) html5Video.currentTime = targetTime;
     }
   }
 
-  // --- 4. User Triggered Actions ---
+  // --- 7. User Action Triggers ---
   function userLoadAndSyncVideo() {
-    const input = document.getElementById('youtube-url').value.trim();
-    if (!input) return showToast('⚠️ يرجى إدخال رابط يوتيوب');
-    const videoId = extractVideoId(input);
-    if (!videoId) return showToast('❌ تعذر استخراج Video ID من الرابط');
+    const input = document.getElementById('video-url-input').value.trim();
+    if (!input) return showToast('⚠️ يرجى إدخال رابط فيديو أو موقع');
 
-    currentVideoId = videoId;
-    isRemoteAction = true;
-    ytPlayer.loadVideoById(videoId, 0);
-    setTimeout(() => { isRemoteAction = false; }, 500);
+    const engineType = detectSourceType(input);
+    setEngine(engineType, input);
 
-    broadcastSignal({ type: 'CHANGE_VIDEO', videoId: videoId });
-    showToast('🚀 تم تحميل الفيديو وإرساله لجميع الأطراف');
+    broadcastSignal({
+      type: 'CHANGE_SOURCE',
+      engineType: engineType,
+      src: input
+    });
+    showToast('🚀 تم تحميل المصدر وتحديث الغرفة للجميع');
   }
 
   function userForceSync() {
-    if (!isPlayerReady || !ytPlayer) return showToast('المشغل غير جاهز بعد');
-    const currentTime = ytPlayer.getCurrentTime ? ytPlayer.getCurrentTime() : 0;
-    const isPlaying = ytPlayer.getPlayerState ? ytPlayer.getPlayerState() === YT.PlayerState.PLAYING : false;
-    const rate = ytPlayer.getPlaybackRate ? ytPlayer.getPlaybackRate() : 1;
+    let currentTime = 0;
+    let isPlaying = false;
+    let rate = 1;
+
+    if (activeEngine === 'youtube' && ytPlayer && ytPlayer.getCurrentTime) {
+      currentTime = ytPlayer.getCurrentTime();
+      isPlaying = ytPlayer.getPlayerState() === YT.PlayerState.PLAYING;
+      rate = ytPlayer.getPlaybackRate ? ytPlayer.getPlaybackRate() : 1;
+    } else if (activeEngine === 'html5') {
+      currentTime = html5Video.currentTime;
+      isPlaying = !html5Video.paused;
+      rate = html5Video.playbackRate;
+    }
 
     broadcastSignal({
       type: 'FORCE_SYNC',
+      engineType: activeEngine,
       currentTime: currentTime,
       isPlaying: isPlaying,
       rate: rate
     });
-    showToast('🔄 تم إرسال أمر المزامنة الإجبارية للجميع');
+    showToast('🔄 تم إرسال أمر المزامنة اللحظية للجميع');
   }
 
-  // --- 5. Helper Functions ---
-  function extractVideoId(url) {
+  // --- 8. Helper Functions ---
+  function extractYouTubeId(url) {
     if (/^[a-zA-Z0-9_-]{11}$/.test(url)) return url;
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
     const match = url.match(regExp);
-    return (match && match[2].length === 11) ? match[2] : null;
+    return (match && match[2].length === 11) ? match[2] : url;
   }
 
   function updateStatus(state, text) {
@@ -846,7 +988,6 @@
     }, 3000);
   }
 
-  // Run on page load
   window.addEventListener('DOMContentLoaded', () => {
     initPeerJS();
   });
