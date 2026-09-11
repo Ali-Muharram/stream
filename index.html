@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Universal Video & iFrame Co-Sync Cinema - مشاهدة ومزامنة متكاملة</title>
+  <title>Universal Video & iFrame Co-Sync Cinema - مشاهدة وشات متكامل</title>
   
   <!-- خط Google Fonts Tajawal -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -112,7 +112,20 @@
       font-weight: bold;
     }
 
-    /* Cinema Video Player Container */
+    /* Cinema Layout with Integrated Chat Drawer */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      width: 100%;
+    }
+
+    @media (min-width: 1100px) {
+      .main-grid {
+        grid-template-columns: 1fr 340px;
+      }
+    }
+
     .cinema-wrapper {
       width: 100%;
       position: relative;
@@ -146,7 +159,7 @@
       border: none;
     }
 
-    /* Interactive Pointer & Click Event Layer */
+    /* Pointer Overlay */
     #pointer-overlay {
       position: absolute;
       top: 0;
@@ -157,7 +170,6 @@
       pointer-events: none;
     }
 
-    /* Remote Peer Cursor Marker */
     .remote-cursor {
       position: absolute;
       width: 22px;
@@ -189,7 +201,6 @@
       border: 1px solid rgba(255, 255, 255, 0.2);
     }
 
-    /* Click Ripple Effect */
     .click-ripple {
       position: absolute;
       width: 44px;
@@ -210,19 +221,7 @@
       }
     }
 
-    /* Controls & Connection Panel Grid */
-    .panels-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 16px;
-    }
-
-    @media (min-width: 992px) {
-      .panels-grid {
-        grid-template-columns: 1.2fr 0.8fr;
-      }
-    }
-
+    /* Cards */
     .card {
       background: var(--card-bg);
       backdrop-filter: blur(16px);
@@ -312,6 +311,11 @@
       background: rgba(255, 255, 255, 0.15);
     }
 
+    .btn-icon {
+      padding: 10px;
+      border-radius: 12px;
+    }
+
     .btn-sm {
       padding: 6px 12px;
       font-size: 0.8rem;
@@ -347,6 +351,137 @@
       padding-top: 10px;
       border-top: 1px solid var(--card-border);
       flex-wrap: wrap;
+    }
+
+    /* Integrated Chat Panel Styles */
+    .chat-card {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 480px;
+      max-height: 600px;
+    }
+
+    .chat-messages-container {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 8px 4px;
+      margin-bottom: 10px;
+    }
+
+    .chat-messages-container::-webkit-scrollbar {
+      width: 6px;
+    }
+    .chat-messages-container::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
+    }
+
+    .chat-bubble {
+      max-width: 85%;
+      padding: 10px 14px;
+      border-radius: 14px;
+      font-size: 0.9rem;
+      word-break: break-word;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .chat-bubble-me {
+      align-self: flex-start;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+
+    .chat-bubble-peer {
+      align-self: flex-end;
+      background: rgba(30, 41, 59, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #f1f5f9;
+      border-bottom-left-radius: 4px;
+    }
+
+    .chat-meta {
+      font-size: 0.7rem;
+      opacity: 0.75;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .chat-media-img {
+      max-width: 100%;
+      max-height: 200px;
+      border-radius: 10px;
+      cursor: pointer;
+      object-fit: cover;
+    }
+
+    .chat-media-video {
+      max-width: 100%;
+      border-radius: 10px;
+    }
+
+    .chat-input-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding-top: 10px;
+      border-top: 1px solid var(--card-border);
+    }
+
+    /* Modal for Image Preview & Settings */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(12px);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-card {
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 24px;
+      width: 100%;
+      max-width: 500px;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.7);
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .setting-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     }
 
     /* Badges & Status */
@@ -389,7 +524,6 @@
       50% { opacity: 0.3; }
     }
 
-    /* Toast Notification */
     #toast-container {
       position: fixed;
       bottom: 24px;
@@ -439,39 +573,65 @@
         <span id="status-text">غير متصل</span>
       </span>
 
+      <!-- Settings Button -->
+      <button class="btn btn-secondary btn-sm" onclick="openSettingsModal()">⚙️ الإعدادات والصوت</button>
+
       <!-- Fixed Device ID tag -->
       <div class="id-tag">
-        <span>ID جهازك الثابت:</span>
+        <span>ID جهازك:</span>
         <code id="my-id">جاري التحميل...</code>
-        <button class="btn btn-secondary btn-sm" onclick="changeCustomPeerId()" title="تعديل معرف جهازك الثابت">✏️ تعديل الـ ID</button>
-        <button class="btn btn-secondary btn-sm" onclick="copyMyId()">📋 نسخ ID</button>
+        <button class="btn btn-secondary btn-sm" onclick="changeCustomPeerId()">✏️ تعديل</button>
+        <button class="btn btn-secondary btn-sm" onclick="copyMyId()">📋 نسخ</button>
         <button class="btn btn-secondary btn-sm" onclick="copyRoomLink()">🔗 الرابط</button>
       </div>
     </div>
   </div>
 
-  <!-- Universal Multi-Engine Video Player Container -->
-  <div class="cinema-wrapper">
-    <div class="player-container" id="main-player-box">
-      <!-- Interactive Remote Mouse & Pointer Laser Overlay -->
-      <div id="pointer-overlay"></div>
+  <!-- Main Grid: Cinema Player + Integrated Chat Drawer -->
+  <div class="main-grid">
+    <!-- Left Column: Video Cinema Player -->
+    <div class="cinema-wrapper">
+      <div class="player-container" id="main-player-box">
+        <div id="pointer-overlay"></div>
+        <div id="yt-player-wrapper" class="player-wrapper">
+          <div id="player"></div>
+        </div>
+        <video id="html5-player" class="player-wrapper" controls style="display:none; width:100%; height:100%; object-fit:contain; background:#000;"></video>
+        <iframe id="iframe-player" class="player-wrapper" style="display:none; width:100%; height:100%; border:none;" allow="autoplay; fullscreen; encrypted-media" allowfullscreen></iframe>
+      </div>
+    </div>
 
-      <!-- YouTube API Player Wrapper -->
-      <div id="yt-player-wrapper" class="player-wrapper">
-        <div id="player"></div>
+    <!-- Right Column: Integrated Chat & Media Drawer -->
+    <div class="card chat-card">
+      <div class="card-title">
+        <span>💬 الشات المباشر للمشاهدة</span>
+        <span id="chat-status" style="font-size: 0.75rem; color: var(--accent);">جاهز للرسائل</span>
       </div>
 
-      <!-- HTML5 Direct Video Player (MP4 / WebM / OGG / HLS / M3U8) -->
-      <video id="html5-player" class="player-wrapper" controls style="display:none; width:100%; height:100%; object-fit:contain; background:#000;"></video>
+      <!-- Messages Stream -->
+      <div class="chat-messages-container" id="chat-messages">
+        <div class="chat-bubble chat-bubble-peer" style="align-self: center; text-align: center; background: rgba(255,255,255,0.05);">
+          👋 مرحباً بك في الشات المباشر! يمكنك إرسال النصوص، الصور، الفيديوهات والتسجيلات الصوتية.
+        </div>
+      </div>
 
-      <!-- Generic iFrame Embed Player (Vimeo, Dailymotion, Custom Sites) -->
-      <iframe id="iframe-player" class="player-wrapper" style="display:none; width:100%; height:100%; border:none;" allow="autoplay; fullscreen; encrypted-media" allowfullscreen></iframe>
+      <!-- Input Actions Bar -->
+      <div class="chat-input-bar">
+        <!-- Hidden File Input for Image/Video/Audio attachments -->
+        <input type="file" id="chat-file-input" accept="image/*,video/*,audio/*" style="display:none;" onchange="handleFileAttachment(this)">
+        
+        <button class="btn btn-secondary btn-icon" onclick="document.getElementById('chat-file-input').click()" title="إرفاق صورة أو فيديو أو صوت">📁</button>
+        <button class="btn btn-secondary btn-icon" id="record-voice-btn" onclick="toggleVoiceRecording()" title="تسجيل صوتي (ميكروفون)">🎤</button>
+
+        <input type="text" id="chat-text-input" placeholder="اكتب رسالتك..." onkeypress="if(event.key==='Enter') sendTextMessage()">
+        <button class="btn btn-primary btn-icon" onclick="sendTextMessage()" title="إرسال">🚀</button>
+      </div>
     </div>
   </div>
 
-  <!-- Control & Connection Panels -->
+  <!-- Bottom Controls & Connection Grid -->
   <div class="panels-grid">
-    <!-- Video Loader Card with Full iFrame Co-Browsing Controller -->
+    <!-- Video Loader Card -->
     <div class="card">
       <div class="card-title">
         <div style="display:flex; align-items:center; gap:8px;">
@@ -486,9 +646,9 @@
         <button class="btn btn-primary" onclick="userLoadAndSyncVideo()">تغيير للجميع 🚀</button>
       </div>
 
-      <!-- iFrame Navigation & Scroll Synchronization Controller Bar -->
+      <!-- iFrame Navigation Controller Bar -->
       <div class="iframe-controls-bar">
-        <span style="font-size:0.85rem; color:var(--text-muted);">تزامن تحكم الـ iFrame والموقع:</span>
+        <span style="font-size:0.85rem; color:var(--text-muted);">تزامن الـ iFrame والموقع:</span>
         <button class="btn btn-secondary btn-sm" onclick="userReloadIframe()">🔄 إعادة تحميل الصفحة</button>
         <button class="btn btn-secondary btn-sm" onclick="userScrollIframe('top')">⬆️ أعلى الصفحة</button>
         <button class="btn btn-secondary btn-sm" onclick="userScrollIframe('down')">⬇️ أسفل الصفحة</button>
@@ -500,7 +660,7 @@
       </div>
     </div>
 
-    <!-- Peer Connection & Saved Friends Card -->
+    <!-- Peer Connection Card -->
     <div class="card">
       <div class="card-title">
         <span>🔗 الانضمام إلى صديق</span>
@@ -523,6 +683,41 @@
 
 </div>
 
+<!-- Settings & Image Preview Modal -->
+<div class="modal-overlay" id="settings-modal">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 style="font-weight: 800; font-size: 1.1rem;">⚙️ إعدادات الإشعارات والصوت</h3>
+      <button class="btn btn-secondary btn-sm" onclick="closeSettingsModal()">✕ إغلاق</button>
+    </div>
+
+    <div class="setting-item">
+      <div>
+        <strong style="display:block; font-size:0.95rem;">🔊 صوت التنبيه عند وصول الرسائل</strong>
+        <span style="font-size:0.8rem; color:var(--text-muted);">تشغيل نغمة عند استقبال رسالة جديدة</span>
+      </div>
+      <input type="checkbox" id="setting-sound-toggle" checked onchange="updateUserSettings()">
+    </div>
+
+    <div class="setting-item">
+      <div>
+        <strong style="display:block; font-size:0.95rem;">🔔 إشعارات Toast التفاعلية</strong>
+        <span style="font-size:0.8rem; color:var(--text-muted);">إظهار تنبيهات الشاشة أسفل الصفحة</span>
+      </div>
+      <input type="checkbox" id="setting-toast-toggle" checked onchange="updateUserSettings()">
+    </div>
+
+    <div class="setting-item" style="border-bottom:none; margin-top:10px;">
+      <button class="btn btn-primary" style="width:100%;" onclick="testNotificationSound()">🎵 تجربة صوت التنبيه الآن</button>
+    </div>
+  </div>
+</div>
+
+<!-- Image Lightbox Modal -->
+<div class="modal-overlay" id="image-modal" onclick="closeImageModal()">
+  <img id="image-modal-img" src="" style="max-width:90%; max-height:90%; border-radius:12px; box-shadow:0 0 30px rgba(0,0,0,0.9);">
+</div>
+
 <!-- Toast Container -->
 <div id="toast-container"></div>
 
@@ -537,6 +732,12 @@
   let isPlayerReady = false;
   let isRemoteAction = false;
   
+  // Settings State
+  let userSettings = {
+    soundEnabled: true,
+    toastEnabled: true
+  };
+
   // Current Media Source State
   let activeEngine = 'youtube'; // 'youtube' | 'html5' | 'iframe'
   let currentSourceUrl = 'dQw4w9WgXcQ';
@@ -549,6 +750,11 @@
   let lastRecordedTime = 0;
   let lastCheckTimestamp = Date.now();
 
+  // Voice Recording State
+  let mediaRecorder = null;
+  let audioChunks = [];
+  let isVoiceRecording = false;
+
   // Auto-Reconnect State
   let isAutoReconnecting = false;
   let autoReconnectTimer = null;
@@ -560,7 +766,206 @@
   const mainPlayerBox = document.getElementById('main-player-box');
   const pointerOverlay = document.getElementById('pointer-overlay');
 
-  // --- 1. Persistent Peer ID Management ---
+  // --- 1. Settings & Audio Synthesizer (تنبيه الصوت والإشعارات) ---
+  function loadUserSettings() {
+    const saved = localStorage.getItem('cinema_user_settings');
+    if (saved) {
+      try { userSettings = JSON.parse(saved); } catch(e) {}
+    }
+    document.getElementById('setting-sound-toggle').checked = userSettings.soundEnabled;
+    document.getElementById('setting-toast-toggle').checked = userSettings.toastEnabled;
+  }
+
+  function updateUserSettings() {
+    userSettings.soundEnabled = document.getElementById('setting-sound-toggle').checked;
+    userSettings.toastEnabled = document.getElementById('setting-toast-toggle').checked;
+    localStorage.setItem('cinema_user_settings', JSON.stringify(userSettings));
+    showToast('⚙️ تم حفظ الإعدادات بنجاح');
+  }
+
+  function openSettingsModal() {
+    document.getElementById('settings-modal').classList.add('active');
+  }
+
+  function closeSettingsModal() {
+    document.getElementById('settings-modal').classList.remove('active');
+  }
+
+  function playNotificationChime() {
+    if (!userSettings.soundEnabled) return;
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5 note
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15); // A5 note
+
+      gain.gain.setValueAtTime(0.25, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start();
+      osc.stop(ctx.currentTime + 0.3);
+    } catch(e) {}
+  }
+
+  function testNotificationSound() {
+    playNotificationChime();
+    showToast('🎵 نغمة التنبيه الصوتية تعمل بشكل رائع!');
+  }
+
+  // --- 2. Integrated Chat Engine (إرسال النص والصور والفيديو والصوت) ---
+  function sendTextMessage() {
+    const input = document.getElementById('chat-text-input');
+    const text = input.value.trim();
+    if (!text) return;
+
+    const msgData = {
+      type: 'CHAT_MSG',
+      msgType: 'text',
+      content: text,
+      sender: getOrCreatePersistentPeerId(),
+      time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+    };
+
+    appendChatMessage(msgData, true);
+    broadcastSignal(msgData);
+    input.value = '';
+  }
+
+  function handleFileAttachment(fileInput) {
+    const file = fileInput.files[0];
+    if (!file) return;
+
+    if (file.size > 15 * 1024 * 1024) {
+      return showToast('⚠️ يرجى اختيار ملف بحجم أقل من 15 ميجابايت');
+    }
+
+    showToast('⏳ جاري رفع ومعالجة الملف...');
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      let msgType = 'image';
+      if (file.type.startsWith('video/')) msgType = 'video';
+      else if (file.type.startsWith('audio/')) msgType = 'audio';
+
+      const msgData = {
+        type: 'CHAT_MSG',
+        msgType: msgType,
+        content: e.target.result,
+        sender: getOrCreatePersistentPeerId(),
+        time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+      };
+
+      appendChatMessage(msgData, true);
+      broadcastSignal(msgData);
+      fileInput.value = '';
+      showToast('✅ تم إرسال الملف بنجاح');
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function toggleVoiceRecording() {
+    const btn = document.getElementById('record-voice-btn');
+
+    if (!isVoiceRecording) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+        mediaRecorder.onstop = () => {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const msgData = {
+              type: 'CHAT_MSG',
+              msgType: 'audio',
+              content: reader.result,
+              sender: getOrCreatePersistentPeerId(),
+              time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+            };
+
+            appendChatMessage(msgData, true);
+            broadcastSignal(msgData);
+          };
+          reader.readAsDataURL(audioBlob);
+          // Stop stream tracks
+          stream.getTracks().forEach(track => track.stop());
+        };
+
+        mediaRecorder.start();
+        isVoiceRecording = true;
+        btn.style.background = 'rgba(239, 68, 68, 0.4)';
+        btn.innerText = '🔴';
+        showToast('🎙️ جاري تسجيل الصوت... اضغط مرة أخرى للإرسال');
+      } catch(err) {
+        showToast('❌ تعذر الوصول للميكروفون لتسجيل الصوت');
+      }
+    } else {
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      }
+      isVoiceRecording = false;
+      btn.style.background = 'rgba(255, 255, 255, 0.08)';
+      btn.innerText = '🎤';
+      showToast('✅ تم إرسال التسجيل الصوتي');
+    }
+  }
+
+  function appendChatMessage(msgData, isMe) {
+    const container = document.getElementById('chat-messages');
+    const bubble = document.createElement('div');
+    bubble.className = `chat-bubble ${isMe ? 'chat-bubble-me' : 'chat-bubble-peer'}`;
+
+    let bodyHtml = '';
+    if (msgData.msgType === 'text') {
+      bodyHtml = `<div>${escapeHtml(msgData.content)}</div>`;
+    } else if (msgData.msgType === 'image') {
+      bodyHtml = `<img src="${msgData.content}" class="chat-media-img" onclick="openImageModal('${msgData.content}')">`;
+    } else if (msgData.msgType === 'video') {
+      bodyHtml = `<video src="${msgData.content}" controls class="chat-media-video"></video>`;
+    } else if (msgData.msgType === 'audio') {
+      bodyHtml = `<audio src="${msgData.content}" controls style="max-width:100%;"></audio>`;
+    }
+
+    bubble.innerHTML = `
+      ${bodyHtml}
+      <div class="chat-meta">
+        <span>${isMe ? 'أنت' : msgData.sender}</span>
+        <span>${msgData.time || ''}</span>
+      </div>
+    `;
+
+    container.appendChild(bubble);
+    container.scrollTop = container.scrollHeight;
+
+    if (!isMe) {
+      playNotificationChime();
+    }
+  }
+
+  function openImageModal(src) {
+    document.getElementById('image-modal-img').src = src;
+    document.getElementById('image-modal').classList.add('active');
+  }
+
+  function closeImageModal() {
+    document.getElementById('image-modal').classList.remove('active');
+  }
+
+  function escapeHtml(text) {
+    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  // --- 3. Persistent Peer ID Management ---
   function getOrCreatePersistentPeerId() {
     let savedId = localStorage.getItem('my_persistent_peer_id');
     if (!savedId) {
@@ -582,7 +987,7 @@
     }
   }
 
-  // --- 2. Save Connected Friends & History ---
+  // --- 4. Save Connected Friends & History ---
   function saveRecentPeer(remoteId) {
     if (!remoteId || remoteId === getOrCreatePersistentPeerId()) return;
     localStorage.setItem('last_connected_peer_id', remoteId);
@@ -611,7 +1016,7 @@
     `).join('');
   }
 
-  // --- 3. Auto-Reconnect Engine ---
+  // --- 5. Auto-Reconnect Engine ---
   function startAutoReconnectProcess(remoteId) {
     if (!remoteId || isAutoReconnecting) return;
     targetAutoReconnectId = remoteId;
@@ -641,23 +1046,20 @@
     }, 3000);
   }
 
-  // --- 4. Synthetic Mouse Event Injector & iFrame Click Sync Engine ---
+  // --- 6. Synthetic Mouse Event Injector & iFrame Click Sync Engine ---
   function toggleLaserPointerState() {
     enableLaserPointer = document.getElementById('toggle-laser-pointer').checked;
     showToast(`مزامنة الضغطات بالماوس: ${enableLaserPointer ? 'مفعلة ✅' : 'معطلة ❌'}`);
   }
 
-  // Capture Mouse Scroll (Wheel) Over iFrame Area
   mainPlayerBox.addEventListener('wheel', (e) => {
     if (!enableLaserPointer || activeConnections.size === 0) return;
-    
     broadcastSignal({
       type: 'IFRAME_WHEEL_SCROLL',
       deltaY: e.deltaY
     });
   }, { passive: true });
 
-  // Capture Clicks & Mouse Movement Over iFrame Area
   mainPlayerBox.addEventListener('mousemove', (e) => {
     if (!enableLaserPointer || activeConnections.size === 0) return;
     const rect = mainPlayerBox.getBoundingClientRect();
@@ -690,10 +1092,8 @@
     const targetX = rect.left + (xPct / 100) * rect.width;
     const targetY = rect.top + (yPct / 100) * rect.height;
 
-    // 1. Render Visual Remote Laser Click Ripple
     renderRemotePointer(senderId, xPct, yPct, true);
 
-    // 2. Dispatch Synthetic Mouse & Click Events to Target Element at Coordinates
     try {
       pointerOverlay.style.pointerEvents = 'none';
       const targetEl = document.elementFromPoint(targetX, targetY);
@@ -748,7 +1148,7 @@
     }, 2500);
   }
 
-  // --- 5. PostMessage & iFrame Controller ---
+  // --- 7. PostMessage & iFrame Controller ---
   window.addEventListener('message', (event) => {
     if (isRemoteAction || !event.data) return;
     try {
@@ -789,7 +1189,7 @@
     window.scrollBy({ top: deltaY, behavior: 'smooth' });
   }
 
-  // --- 6. Universal Engine Switcher & Detection ---
+  // --- 8. Universal Engine Switcher & Detection ---
   function detectSourceType(url) {
     if (!url) return 'youtube';
     const trimmed = url.trim();
@@ -854,7 +1254,7 @@
     }
   }
 
-  // --- 7. HTML5 Video Event Listeners ---
+  // --- 9. HTML5 Video Event Listeners ---
   html5Video.addEventListener('play', () => {
     if (isRemoteAction || activeEngine !== 'html5') return;
     broadcastSignal({ type: 'PLAY', currentTime: html5Video.currentTime, rate: html5Video.playbackRate });
@@ -890,7 +1290,7 @@
     broadcastSignal({ type: 'ENDED' });
   });
 
-  // --- 8. YouTube IFrame API Handler ---
+  // --- 10. YouTube IFrame API Handler ---
   function onYouTubeIframeAPIReady() {
     ytPlayer = new YT.Player('player', {
       height: '100%',
@@ -972,7 +1372,7 @@
     showToast('⚠️ يتعذر تشغيل المصدر بسبب قيود التضمين للموقع الاصلي');
   }
 
-  // --- 9. Periodic Monitor ---
+  // --- 11. Periodic Monitor ---
   setInterval(() => {
     if (activeEngine === 'youtube' && isPlayerReady && ytPlayer && ytPlayer.getCurrentTime) {
       if (checkIsAd()) {
@@ -1023,7 +1423,7 @@
     }
   }, 350);
 
-  // --- 10. PeerJS Setup & Router ---
+  // --- 12. PeerJS Setup & Universal Signal Router ---
   function initPeerJS() {
     updateStatus('connecting', 'جاري الاتصال بالسيرفر...');
 
@@ -1035,6 +1435,7 @@
       updateStatus('disconnected', 'جاهز للاتصال');
       showToast(`تم تثبيت ID جهازك: (${id}) ✅`);
 
+      loadUserSettings();
       renderRecentPeersUI();
 
       const urlParams = new URLSearchParams(window.location.search);
@@ -1145,11 +1546,15 @@
     });
   }
 
-  // --- 11. Universal Signal Router ---
+  // --- 13. Universal Signal Router ---
   function handleRemoteSignal(data, senderConn) {
     isRemoteAction = true;
 
     switch (data.type) {
+      case 'CHAT_MSG':
+        appendChatMessage(data, false);
+        break;
+
       case 'EXECUTE_REMOTE_CLICK':
         executeRemoteClickAt(senderConn.peer, data.xPct, data.yPct);
         break;
@@ -1296,7 +1701,7 @@
     }
   }
 
-  // --- 12. User Action Triggers ---
+  // --- 14. User Action Triggers ---
   function userLoadAndSyncVideo() {
     const input = document.getElementById('video-url-input').value.trim();
     if (!input) return showToast('⚠️ يرجى إدخال رابط فيديو أو موقع');
@@ -1337,7 +1742,7 @@
     showToast('🔄 تم إرسال أمر المزامنة اللحظية للجميع');
   }
 
-  // --- 13. Helper Functions ---
+  // --- 15. Helper Functions ---
   function extractYouTubeId(url) {
     if (/^[a-zA-Z0-9_-]{11}$/.test(url)) return url;
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
@@ -1372,6 +1777,7 @@
   }
 
   function showToast(message) {
+    if (!userSettings.toastEnabled) return;
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
     toast.className = 'toast';
